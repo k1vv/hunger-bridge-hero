@@ -10,6 +10,7 @@ import {
   Package,
   Settings,
   Leaf,
+  LogOut,
 } from "lucide-react";
 
 const navItems = [
