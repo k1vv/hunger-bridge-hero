@@ -61,11 +61,18 @@ const AppSidebar = () => {
         })}
       </nav>
 
-      <div className="border-t border-border p-4">
+      <div className="border-t border-border p-4 space-y-3">
         <div className="rounded-lg bg-primary/5 p-3">
           <p className="text-xs font-semibold text-primary">Admin Portal</p>
           <p className="text-[11px] text-muted-foreground mt-0.5">admin@foodbridge.org</p>
         </div>
+        <button
+          onClick={() => navigate("/login/admin")}
+          className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-destructive hover:bg-destructive/10 transition-colors"
+        >
+          <LogOut className="h-4 w-4" />
+          Logout
+        </button>
       </div>
     </aside>
   );
