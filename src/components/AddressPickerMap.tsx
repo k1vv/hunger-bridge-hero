@@ -48,7 +48,7 @@ const AddressPickerMap = ({ value, onChange }: AddressPickerMapProps) => {
 
   // Load Google Maps script
   useEffect(() => {
-    if (window.google?.maps) {
+    if ((window as any).google?.maps) {
       setMapLoaded(true);
       setLoadingMap(false);
       return;
