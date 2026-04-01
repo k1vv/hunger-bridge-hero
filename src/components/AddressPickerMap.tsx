@@ -199,20 +199,42 @@ const AddressPickerMap = ({ value, onChange }: AddressPickerMapProps) => {
     onChange(updated);
   };
   const handleLocateMe = () => {
-    if (!navigator.geolocation) return;
+    if (!navigator.geolocation) {
+      toast.error("Geolocation is not supported by your browser");
+      return;
+    }
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         const latLng = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-        mapInstanceRef.current?.setCenter(latLng);
-        mapInstanceRef.current?.setZoom(17);
-        markerRef.current?.setPosition(latLng);
-        geocoderRef.current?.geocode({ location: latLng }, (results, status) => {
-          if (status === "OK" && results?.[0]) {
-            parseGeocoderResult(results[0]);
-          }
-        });
+        if (mapInstanceRef.current) {
+          mapInstanceRef.current.setCenter(latLng);
+          mapInstanceRef.current.setZoom(17);
+        }
+        if (markerRef.current) {
+          markerRef.current.setPosition(latLng);
+        }
+        if (geocoderRef.current) {
+          geocoderRef.current.geocode({ location: latLng }, (results, status) => {
+            if (status === "OK" && results?.[0]) {
+              parseGeocoderResult(results[0]);
+            }
+          });
+        } else {
+          // Map not loaded yet, just store coordinates
+          onChange({ ...value, lat: latLng.lat, lng: latLng.lng });
+        }
       },
-      () => console.warn("Geolocation denied"),
+      (err) => {
+        console.error("Geolocation error:", err.code, err.message);
+        if (err.code === 1) {
+          toast.error("Location access denied. Please allow location access in your browser settings.");
+        } else if (err.code === 2) {
+          toast.error("Unable to determine your location. Please try again.");
+        } else {
+          toast.error("Location request timed out. Please try again.");
+        }
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 },
     );
   };
   return (
