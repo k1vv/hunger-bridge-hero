@@ -23,9 +23,22 @@ interface AddressPickerMapProps {
 }
 
 const MALAYSIAN_STATES = [
-  "Johor", "Kedah", "Kelantan", "Kuala Lumpur", "Labuan", "Melaka",
-  "Negeri Sembilan", "Pahang", "Penang", "Perak", "Perlis", "Putrajaya",
-  "Sabah", "Sarawak", "Selangor", "Terengganu",
+  "Johor",
+  "Kedah",
+  "Kelantan",
+  "Kuala Lumpur",
+  "Labuan",
+  "Melaka",
+  "Negeri Sembilan",
+  "Pahang",
+  "Penang",
+  "Perak",
+  "Perlis",
+  "Putrajaya",
+  "Sabah",
+  "Sarawak",
+  "Selangor",
+  "Terengganu",
 ];
 
 const DEFAULT_CENTER = { lat: 3.139, lng: 101.6869 }; // KL
@@ -131,83 +144,53 @@ const AddressPickerMap = ({ value, onChange }: AddressPickerMapProps) => {
       };
       onChange(addr);
     },
-    [onChange]
+    [onChange],
   );
 
   // Initialize map
   useEffect(() => {
-    if (!mapLoaded || !mapRef.current || mapInstanceRef.current) return;
+    if (!mapLoaded || !mapInstanceRef.current || !markerRef.current || !geocoderRef.current) return;
 
-    const center = value.lat && value.lng ? { lat: value.lat, lng: value.lng } : DEFAULT_CENTER;
+    // Only auto-locate if no existing address coordinates are already set
+    if (value.lat && value.lng) return;
 
-    const map = new google.maps.Map(mapRef.current, {
-      center,
-      zoom: 14,
-      mapTypeControl: false,
-      streetViewControl: false,
-      fullscreenControl: false,
-    });
-
-    const marker = new google.maps.Marker({
-      position: center,
-      map,
-      draggable: true,
-    });
-
-    const geocoder = new google.maps.Geocoder();
-
-    marker.addListener("dragend", () => {
-      const pos = marker.getPosition();
-      if (pos) {
-        geocoder.geocode({ location: pos }, (results, status) => {
-          if (status === "OK" && results?.[0]) {
-            parseGeocoderResult(results[0]);
-          }
-        });
-      }
-    });
-
-    map.addListener("click", (e: google.maps.MapMouseEvent) => {
-      if (e.latLng) {
-        marker.setPosition(e.latLng);
-        geocoder.geocode({ location: e.latLng }, (results, status) => {
-          if (status === "OK" && results?.[0]) {
-            parseGeocoderResult(results[0]);
-          }
-        });
-      }
-    });
-
-    mapInstanceRef.current = map;
-    markerRef.current = marker;
-    geocoderRef.current = geocoder;
-
-    // Setup autocomplete on search input
-    if (searchInputRef.current) {
-      const autocomplete = new google.maps.places.Autocomplete(searchInputRef.current, {
-        componentRestrictions: { country: "my" },
-        fields: ["geometry", "address_components", "formatted_address"],
-      });
-
-      autocomplete.addListener("place_changed", () => {
-        const place = autocomplete.getPlace();
-        if (place.geometry?.location) {
-          map.setCenter(place.geometry.location);
-          map.setZoom(17);
-          marker.setPosition(place.geometry.location);
-
-          if (place.address_components) {
-            parseGeocoderResult({
-              address_components: place.address_components,
-              geometry: { location: place.geometry.location },
-            } as google.maps.GeocoderResult);
-          }
-        }
-      });
-
-      autocompleteRef.current = autocomplete;
+    if (!navigator.geolocation) {
+      // Browser does not support geolocation, keep Kuala Lumpur
+      mapInstanceRef.current.setCenter(DEFAULT_CENTER);
+      markerRef.current.setPosition(DEFAULT_CENTER);
+      return;
     }
-  }, [mapLoaded, parseGeocoderResult]);
+
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const latLng = {
+          lat: pos.coords.latitude,
+          lng: pos.coords.longitude,
+        };
+
+        mapInstanceRef.current?.setCenter(latLng);
+        mapInstanceRef.current?.setZoom(17);
+        markerRef.current?.setPosition(latLng);
+
+        geocoderRef.current?.geocode({ location: latLng }, (results, status) => {
+          if (status === "OK" && results?.[0]) {
+            parseGeocoderResult(results[0]);
+          }
+        });
+      },
+      () => {
+        // If denied or failed, fall back to Kuala Lumpur
+        mapInstanceRef.current?.setCenter(DEFAULT_CENTER);
+        mapInstanceRef.current?.setZoom(14);
+        markerRef.current?.setPosition(DEFAULT_CENTER);
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 0,
+      },
+    );
+  }, [mapLoaded, value.lat, value.lng, parseGeocoderResult]);
 
   const handleFieldChange = (field: keyof Omit<StructuredAddress, "fullAddress" | "lat" | "lng">, val: string) => {
     const updated = { ...value, [field]: val };
@@ -229,7 +212,7 @@ const AddressPickerMap = ({ value, onChange }: AddressPickerMapProps) => {
           }
         });
       },
-      () => console.warn("Geolocation denied")
+      () => console.warn("Geolocation denied"),
     );
   };
 
@@ -239,20 +222,12 @@ const AddressPickerMap = ({ value, onChange }: AddressPickerMapProps) => {
       <div className="space-y-2">
         <Label>Search or pin location on map</Label>
         <div className="flex gap-2">
-          <Input
-            ref={searchInputRef}
-            placeholder="Search address in Malaysia..."
-            className="flex-1"
-          />
+          <Input ref={searchInputRef} placeholder="Search address in Malaysia..." className="flex-1" />
           <Button type="button" variant="outline" size="icon" onClick={handleLocateMe} title="Use my location">
             <MapPin className="h-4 w-4" />
           </Button>
         </div>
-        <div
-          ref={mapRef}
-          className="w-full h-48 rounded-md border border-input bg-muted"
-          style={{ minHeight: 192 }}
-        >
+        <div ref={mapRef} className="w-full h-48 rounded-md border border-input bg-muted" style={{ minHeight: 192 }}>
           {loadingMap && (
             <div className="flex items-center justify-center h-full">
               <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -316,7 +291,9 @@ const AddressPickerMap = ({ value, onChange }: AddressPickerMapProps) => {
           >
             <option value="">Select state</option>
             {MALAYSIAN_STATES.map((s) => (
-              <option key={s} value={s}>{s}</option>
+              <option key={s} value={s}>
+                {s}
+              </option>
             ))}
           </select>
         </div>
