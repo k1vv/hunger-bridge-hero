@@ -61,136 +61,77 @@ const AddressPickerMap = ({ value, onChange }: AddressPickerMapProps) => {
 
   // Load Google Maps script
   useEffect(() => {
-    if ((window as any).google?.maps) {
-      setMapLoaded(true);
-      setLoadingMap(false);
-      return;
-    }
+    if (!mapLoaded || !mapRef.current || mapInstanceRef.current) return;
 
-    const loadScript = async () => {
-      try {
-        const { data, error } = await supabase.functions.invoke("get-maps-key");
-        if (error || !data?.key) {
-          console.error("Failed to load Maps API key:", error);
-          setLoadingMap(false);
-          return;
-        }
+    const center = value.lat && value.lng ? { lat: value.lat, lng: value.lng } : DEFAULT_CENTER;
 
-        const script = document.createElement("script");
-        script.src = `https://maps.googleapis.com/maps/api/js?key=${data.key}&libraries=places`;
-        script.async = true;
-        script.defer = true;
-        script.onload = () => {
-          setMapLoaded(true);
-          setLoadingMap(false);
-        };
-        script.onerror = () => {
-          console.error("Failed to load Google Maps script");
-          setLoadingMap(false);
-        };
-        document.head.appendChild(script);
-      } catch (err) {
-        console.error("Error fetching maps key:", err);
-        setLoadingMap(false);
-      }
-    };
+    const map = new google.maps.Map(mapRef.current, {
+      center,
+      zoom: 14,
+      mapTypeControl: false,
+      streetViewControl: false,
+      fullscreenControl: false,
+    });
 
-    loadScript();
-  }, []);
+    const marker = new google.maps.Marker({
+      position: center,
+      map,
+      draggable: true,
+    });
 
-  const parseGeocoderResult = useCallback(
-    (result: google.maps.GeocoderResult) => {
-      const components = result.address_components;
-      let street1 = "";
-      let street2 = "";
-      let city = "";
-      let postcode = "";
-      let state = "";
+    const geocoder = new google.maps.Geocoder();
 
-      for (const comp of components) {
-        const types = comp.types;
-        if (types.includes("street_number")) {
-          street1 = comp.long_name + " " + street1;
-        } else if (types.includes("route")) {
-          street1 = street1 + comp.long_name;
-        } else if (types.includes("sublocality") || types.includes("sublocality_level_1")) {
-          street2 = comp.long_name;
-        } else if (types.includes("locality")) {
-          city = comp.long_name;
-        } else if (types.includes("postal_code")) {
-          postcode = comp.long_name;
-        } else if (types.includes("administrative_area_level_1")) {
-          state = comp.long_name;
-        }
-      }
-
-      // Fallback city
-      if (!city) {
-        const adminArea2 = components.find((c) => c.types.includes("administrative_area_level_2"));
-        if (adminArea2) city = adminArea2.long_name;
-      }
-
-      street1 = street1.trim();
-
-      const addr: StructuredAddress = {
-        street1,
-        street2,
-        city,
-        postcode,
-        state,
-        fullAddress: buildFullAddress({ street1, street2, city, postcode, state }),
-        lat: result.geometry.location.lat(),
-        lng: result.geometry.location.lng(),
-      };
-      onChange(addr);
-    },
-    [onChange],
-  );
-
-  // Initialize map
-  useEffect(() => {
-    if (!mapLoaded || !mapInstanceRef.current || !markerRef.current || !geocoderRef.current) return;
-
-    // Only auto-locate if no existing address coordinates are already set
-    if (value.lat && value.lng) return;
-
-    if (!navigator.geolocation) {
-      // Browser does not support geolocation, keep Kuala Lumpur
-      mapInstanceRef.current.setCenter(DEFAULT_CENTER);
-      markerRef.current.setPosition(DEFAULT_CENTER);
-      return;
-    }
-
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        const latLng = {
-          lat: pos.coords.latitude,
-          lng: pos.coords.longitude,
-        };
-
-        mapInstanceRef.current?.setCenter(latLng);
-        mapInstanceRef.current?.setZoom(17);
-        markerRef.current?.setPosition(latLng);
-
-        geocoderRef.current?.geocode({ location: latLng }, (results, status) => {
+    marker.addListener("dragend", () => {
+      const pos = marker.getPosition();
+      if (pos) {
+        geocoder.geocode({ location: pos }, (results, status) => {
           if (status === "OK" && results?.[0]) {
             parseGeocoderResult(results[0]);
           }
         });
-      },
-      () => {
-        // If denied or failed, fall back to Kuala Lumpur
-        mapInstanceRef.current?.setCenter(DEFAULT_CENTER);
-        mapInstanceRef.current?.setZoom(14);
-        markerRef.current?.setPosition(DEFAULT_CENTER);
-      },
-      {
-        enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 0,
-      },
-    );
-  }, [mapLoaded, value.lat, value.lng, parseGeocoderResult]);
+      }
+    });
+
+    map.addListener("click", (e: google.maps.MapMouseEvent) => {
+      if (e.latLng) {
+        marker.setPosition(e.latLng);
+        geocoder.geocode({ location: e.latLng }, (results, status) => {
+          if (status === "OK" && results?.[0]) {
+            parseGeocoderResult(results[0]);
+          }
+        });
+      }
+    });
+
+    mapInstanceRef.current = map;
+    markerRef.current = marker;
+    geocoderRef.current = geocoder;
+
+    if (searchInputRef.current) {
+      const autocomplete = new google.maps.places.Autocomplete(searchInputRef.current, {
+        componentRestrictions: { country: "my" },
+        fields: ["geometry", "address_components", "formatted_address"],
+      });
+
+      autocomplete.addListener("place_changed", () => {
+        const place = autocomplete.getPlace();
+        if (place.geometry?.location) {
+          map.setCenter(place.geometry.location);
+          map.setZoom(17);
+          marker.setPosition(place.geometry.location);
+
+          if (place.address_components) {
+            parseGeocoderResult({
+              address_components: place.address_components,
+              geometry: { location: place.geometry.location },
+            } as google.maps.GeocoderResult);
+          }
+        }
+      });
+
+      autocompleteRef.current = autocomplete;
+    }
+  }, [mapLoaded, parseGeocoderResult]);
 
   const handleFieldChange = (field: keyof Omit<StructuredAddress, "fullAddress" | "lat" | "lng">, val: string) => {
     const updated = { ...value, [field]: val };
