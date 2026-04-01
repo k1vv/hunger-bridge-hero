@@ -5,7 +5,6 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { MapPin, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-
 export interface StructuredAddress {
   street1: string;
   street2: string;
@@ -16,12 +15,10 @@ export interface StructuredAddress {
   lat: number | null;
   lng: number | null;
 }
-
 interface AddressPickerMapProps {
   value: StructuredAddress;
   onChange: (address: StructuredAddress) => void;
 }
-
 const MALAYSIAN_STATES = [
   "Johor",
   "Kedah",
@@ -40,14 +37,11 @@ const MALAYSIAN_STATES = [
   "Selangor",
   "Terengganu",
 ];
-
 const DEFAULT_CENTER = { lat: 3.139, lng: 101.6869 }; // KL
-
 function buildFullAddress(addr: Omit<StructuredAddress, "fullAddress" | "lat" | "lng">) {
   const parts = [addr.street1, addr.street2, addr.postcode + " " + addr.city, addr.state].filter(Boolean);
   return parts.join(", ");
 }
-
 const AddressPickerMap = ({ value, onChange }: AddressPickerMapProps) => {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<google.maps.Map | null>(null);
@@ -55,61 +49,20 @@ const AddressPickerMap = ({ value, onChange }: AddressPickerMapProps) => {
   const geocoderRef = useRef<google.maps.Geocoder | null>(null);
   const autocompleteRef = useRef<google.maps.places.Autocomplete | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
-
   const [mapLoaded, setMapLoaded] = useState(false);
   const [loadingMap, setLoadingMap] = useState(true);
-
-  const parseGeocoderResult = useCallback((result: google.maps.GeocoderResult) => {
-    const components = result.address_components;
-    let street1 = "";
-    let street2 = "";
-    let city = "";
-    let postcode = "";
-    let state = "";
-
-    for (const comp of components) {
-      const types = comp.types;
-      if (types.includes("street_number")) {
-        street1 = comp.long_name + " " + street1;
-      } else if (types.includes("route")) {
-        street1 = street1 + comp.long_name;
-      } else if (types.includes("sublocality") || types.includes("sublocality_level_1")) {
-        street2 = comp.long_name;
-      } else if (types.includes("locality")) {
-        city = comp.long_name;
-      } else if (types.includes("postal_code")) {
-        postcode = comp.long_name;
-      } else if (types.includes("administrative_area_level_1")) {
-        const matched = MALAYSIAN_STATES.find(
-          (s) => s.toLowerCase() === comp.long_name.toLowerCase()
-        );
-        state = matched || comp.long_name;
-      }
-    }
-
-    const lat = result.geometry?.location?.lat() ?? null;
-    const lng = result.geometry?.location?.lng() ?? null;
-
-    const addr = { street1: street1.trim(), street2, city, postcode, state };
-    const fullAddress = buildFullAddress(addr);
-    onChange({ ...addr, fullAddress, lat, lng });
-  }, [onChange]);
-
   // Load Google Maps script
   useEffect(() => {
-    if (mapLoaded) return;
-    const existingScript = document.querySelector('script[src*="maps.googleapis.com"]');
-    if (existingScript) {
+    if ((window as any).google?.maps) {
       setMapLoaded(true);
       setLoadingMap(false);
       return;
     }
-
-    const fetchKeyAndLoad = async () => {
+    const loadScript = async () => {
       try {
         const { data, error } = await supabase.functions.invoke("get-maps-key");
         if (error || !data?.key) {
-          console.error("Failed to fetch Maps API key", error);
+          console.error("Failed to load Maps API key:", error);
           setLoadingMap(false);
           return;
         }
@@ -121,21 +74,66 @@ const AddressPickerMap = ({ value, onChange }: AddressPickerMapProps) => {
           setMapLoaded(true);
           setLoadingMap(false);
         };
-        script.onerror = () => setLoadingMap(false);
+        script.onerror = () => {
+          console.error("Failed to load Google Maps script");
+          setLoadingMap(false);
+        };
         document.head.appendChild(script);
-      } catch {
+      } catch (err) {
+        console.error("Error fetching maps key:", err);
         setLoadingMap(false);
       }
     };
-    fetchKeyAndLoad();
-  }, [mapLoaded]);
-
+    loadScript();
+  }, []);
+  const parseGeocoderResult = useCallback(
+    (result: google.maps.GeocoderResult) => {
+      const components = result.address_components;
+      let street1 = "";
+      let street2 = "";
+      let city = "";
+      let postcode = "";
+      let state = "";
+      for (const comp of components) {
+        const types = comp.types;
+        if (types.includes("street_number")) {
+          street1 = comp.long_name + " " + street1;
+        } else if (types.includes("route")) {
+          street1 = street1 + comp.long_name;
+        } else if (types.includes("sublocality") || types.includes("sublocality_level_1")) {
+          street2 = comp.long_name;
+        } else if (types.includes("locality")) {
+          city = comp.long_name;
+        } else if (types.includes("postal_code")) {
+          postcode = comp.long_name;
+        } else if (types.includes("administrative_area_level_1")) {
+          state = comp.long_name;
+        }
+      }
+      // Fallback city
+      if (!city) {
+        const adminArea2 = components.find((c) => c.types.includes("administrative_area_level_2"));
+        if (adminArea2) city = adminArea2.long_name;
+      }
+      street1 = street1.trim();
+      const addr: StructuredAddress = {
+        street1,
+        street2,
+        city,
+        postcode,
+        state,
+        fullAddress: buildFullAddress({ street1, street2, city, postcode, state }),
+        lat: result.geometry.location.lat(),
+        lng: result.geometry.location.lng(),
+      };
+      onChange(addr);
+    },
+    [onChange],
+  );
   // Initialize map
   useEffect(() => {
     if (!mapLoaded || !mapRef.current || mapInstanceRef.current) return;
-
     const center = value.lat && value.lng ? { lat: value.lat, lng: value.lng } : DEFAULT_CENTER;
-
     const map = new google.maps.Map(mapRef.current, {
       center,
       zoom: 14,
@@ -143,15 +141,12 @@ const AddressPickerMap = ({ value, onChange }: AddressPickerMapProps) => {
       streetViewControl: false,
       fullscreenControl: false,
     });
-
     const marker = new google.maps.Marker({
       position: center,
       map,
       draggable: true,
     });
-
     const geocoder = new google.maps.Geocoder();
-
     marker.addListener("dragend", () => {
       const pos = marker.getPosition();
       if (pos) {
@@ -162,7 +157,6 @@ const AddressPickerMap = ({ value, onChange }: AddressPickerMapProps) => {
         });
       }
     });
-
     map.addListener("click", (e: google.maps.MapMouseEvent) => {
       if (e.latLng) {
         marker.setPosition(e.latLng);
@@ -173,24 +167,21 @@ const AddressPickerMap = ({ value, onChange }: AddressPickerMapProps) => {
         });
       }
     });
-
     mapInstanceRef.current = map;
     markerRef.current = marker;
     geocoderRef.current = geocoder;
-
+    // Setup autocomplete on search input
     if (searchInputRef.current) {
       const autocomplete = new google.maps.places.Autocomplete(searchInputRef.current, {
         componentRestrictions: { country: "my" },
         fields: ["geometry", "address_components", "formatted_address"],
       });
-
       autocomplete.addListener("place_changed", () => {
         const place = autocomplete.getPlace();
         if (place.geometry?.location) {
           map.setCenter(place.geometry.location);
           map.setZoom(17);
           marker.setPosition(place.geometry.location);
-
           if (place.address_components) {
             parseGeocoderResult({
               address_components: place.address_components,
@@ -199,17 +190,14 @@ const AddressPickerMap = ({ value, onChange }: AddressPickerMapProps) => {
           }
         }
       });
-
       autocompleteRef.current = autocomplete;
     }
   }, [mapLoaded, parseGeocoderResult]);
-
   const handleFieldChange = (field: keyof Omit<StructuredAddress, "fullAddress" | "lat" | "lng">, val: string) => {
     const updated = { ...value, [field]: val };
     updated.fullAddress = buildFullAddress(updated);
     onChange(updated);
   };
-
   const handleLocateMe = () => {
     if (!navigator.geolocation) return;
     navigator.geolocation.getCurrentPosition(
@@ -227,7 +215,6 @@ const AddressPickerMap = ({ value, onChange }: AddressPickerMapProps) => {
       () => console.warn("Geolocation denied"),
     );
   };
-
   return (
     <div className="space-y-3">
       {/* Search + Map */}
@@ -247,7 +234,6 @@ const AddressPickerMap = ({ value, onChange }: AddressPickerMapProps) => {
           )}
         </div>
       </div>
-
       {/* Structured address fields */}
       <div className="grid grid-cols-1 gap-3">
         <div className="space-y-1">
@@ -313,5 +299,4 @@ const AddressPickerMap = ({ value, onChange }: AddressPickerMapProps) => {
     </div>
   );
 };
-
 export default AddressPickerMap;
