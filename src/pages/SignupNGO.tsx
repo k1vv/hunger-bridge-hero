@@ -7,12 +7,18 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Leaf, Building2 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import AddressPickerMap, { type StructuredAddress } from "@/components/AddressPickerMap";
+
+const emptyAddress: StructuredAddress = {
+  street1: "", street2: "", city: "", postcode: "", state: "",
+  fullAddress: "", lat: null, lng: null,
+};
 
 const SignupNGO = () => {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
-  const [address, setAddress] = useState("");
+  const [address, setAddress] = useState<StructuredAddress>(emptyAddress);
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
@@ -23,12 +29,26 @@ const SignupNGO = () => {
       toast.error("Password must be at least 6 characters");
       return;
     }
+    if (!address.street1 || !address.city || !address.postcode || !address.state) {
+      toast.error("Please fill in all required address fields");
+      return;
+    }
     setLoading(true);
     const { error } = await supabase.auth.signUp({
       email,
       password,
       options: {
-        data: { name, phone, address, role: "ngo" },
+        data: {
+          name, phone, role: "ngo",
+          address: address.fullAddress,
+          address_street1: address.street1,
+          address_street2: address.street2,
+          address_city: address.city,
+          address_postcode: address.postcode,
+          address_state: address.state,
+          address_lat: address.lat,
+          address_lng: address.lng,
+        },
         emailRedirectTo: window.location.origin,
       },
     });
@@ -42,8 +62,8 @@ const SignupNGO = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background px-4">
-      <div className="w-full max-w-md space-y-6">
+    <div className="min-h-screen flex items-center justify-center bg-background px-4 py-8">
+      <div className="w-full max-w-lg space-y-6">
         <div className="flex flex-col items-center gap-2">
           <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-accent">
             <Leaf className="h-6 w-6 text-accent-foreground" />
@@ -72,12 +92,11 @@ const SignupNGO = () => {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="phone">Phone</Label>
-                <Input id="phone" type="tel" placeholder="+1234567890" value={phone} onChange={(e) => setPhone(e.target.value)} />
+                <Input id="phone" type="tel" placeholder="+60123456789" value={phone} onChange={(e) => setPhone(e.target.value)} />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="address">Address</Label>
-                <Input id="address" placeholder="Organization address" value={address} onChange={(e) => setAddress(e.target.value)} />
-              </div>
+
+              <AddressPickerMap value={address} onChange={setAddress} />
+
               <div className="space-y-2">
                 <Label htmlFor="password">Password</Label>
                 <Input id="password" type="password" placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} required />
