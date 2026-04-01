@@ -10,6 +10,9 @@ import Inventory from "./pages/Inventory";
 import Logistics from "./pages/Logistics";
 import AIInsights from "./pages/AIInsights";
 import Analytics from "./pages/Analytics";
+import LoginVendor from "./pages/LoginVendor";
+import LoginNGO from "./pages/LoginNGO";
+import LoginAdmin from "./pages/LoginAdmin";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -22,6 +25,9 @@ const App = () => (
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Index />} />
+          <Route path="/login/vendor" element={<LoginVendor />} />
+          <Route path="/login/ngo" element={<LoginNGO />} />
+          <Route path="/login/admin" element={<LoginAdmin />} />
           <Route path="/listings" element={<Listings />} />
           <Route path="/ngos" element={<NGOs />} />
           <Route path="/inventory" element={<Inventory />} />
