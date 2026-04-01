@@ -8,23 +8,37 @@ import { Leaf, Building2 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 
-const LoginNGO = () => {
+const SignupNGO = () => {
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [address, setAddress] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (password.length < 6) {
+      toast.error("Password must be at least 6 characters");
+      return;
+    }
     setLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: { name, phone, address, role: "ngo" },
+        emailRedirectTo: window.location.origin,
+      },
+    });
     setLoading(false);
     if (error) {
       toast.error(error.message);
       return;
     }
-    toast.success("NGO login successful!");
-    navigate("/ngos");
+    toast.success("Account created! Please check your email to verify.");
+    navigate("/login/ngo");
   };
 
   return (
@@ -43,32 +57,38 @@ const LoginNGO = () => {
 
         <Card>
           <CardHeader className="text-center">
-            <CardTitle>NGO Login</CardTitle>
-            <CardDescription>Sign in to browse and reserve food listings</CardDescription>
+            <CardTitle>NGO Sign Up</CardTitle>
+            <CardDescription>Register your organization to receive food donations</CardDescription>
           </CardHeader>
           <CardContent>
-            <form onSubmit={handleLogin} className="space-y-4">
+            <form onSubmit={handleSignup} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="name">Organization Name</Label>
+                <Input id="name" placeholder="Your NGO name" value={name} onChange={(e) => setName(e.target.value)} required />
+              </div>
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
                 <Input id="email" type="email" placeholder="ngo@example.com" value={email} onChange={(e) => setEmail(e.target.value)} required />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="phone">Phone</Label>
+                <Input id="phone" type="tel" placeholder="+1234567890" value={phone} onChange={(e) => setPhone(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="address">Address</Label>
+                <Input id="address" placeholder="Organization address" value={address} onChange={(e) => setAddress(e.target.value)} />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="password">Password</Label>
                 <Input id="password" type="password" placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} required />
               </div>
               <Button type="submit" className="w-full bg-accent hover:bg-accent/90" disabled={loading}>
-                {loading ? "Signing in..." : "Sign In"}
+                {loading ? "Creating account..." : "Create Account"}
               </Button>
             </form>
             <div className="mt-4 text-center text-sm text-muted-foreground">
-              Don't have an account?{" "}
-              <Link to="/signup/ngo" className="text-primary hover:underline">Sign Up</Link>
-            </div>
-            <div className="mt-2 text-center text-sm text-muted-foreground">
-              Not an NGO?{" "}
-              <Link to="/login/vendor" className="text-primary hover:underline">Vendor Login</Link>
-              {" · "}
-              <Link to="/login/admin" className="text-primary hover:underline">Admin Login</Link>
+              Already have an account?{" "}
+              <Link to="/login/ngo" className="text-primary hover:underline">Sign In</Link>
             </div>
           </CardContent>
         </Card>
@@ -77,4 +97,4 @@ const LoginNGO = () => {
   );
 };
 
-export default LoginNGO;
+export default SignupNGO;
