@@ -59,7 +59,78 @@ const AddressPickerMap = ({ value, onChange }: AddressPickerMapProps) => {
   const [mapLoaded, setMapLoaded] = useState(false);
   const [loadingMap, setLoadingMap] = useState(true);
 
+  const parseGeocoderResult = useCallback((result: google.maps.GeocoderResult) => {
+    const components = result.address_components;
+    let street1 = "";
+    let street2 = "";
+    let city = "";
+    let postcode = "";
+    let state = "";
+
+    for (const comp of components) {
+      const types = comp.types;
+      if (types.includes("street_number")) {
+        street1 = comp.long_name + " " + street1;
+      } else if (types.includes("route")) {
+        street1 = street1 + comp.long_name;
+      } else if (types.includes("sublocality") || types.includes("sublocality_level_1")) {
+        street2 = comp.long_name;
+      } else if (types.includes("locality")) {
+        city = comp.long_name;
+      } else if (types.includes("postal_code")) {
+        postcode = comp.long_name;
+      } else if (types.includes("administrative_area_level_1")) {
+        const matched = MALAYSIAN_STATES.find(
+          (s) => s.toLowerCase() === comp.long_name.toLowerCase()
+        );
+        state = matched || comp.long_name;
+      }
+    }
+
+    const lat = result.geometry?.location?.lat() ?? null;
+    const lng = result.geometry?.location?.lng() ?? null;
+
+    const addr = { street1: street1.trim(), street2, city, postcode, state };
+    const fullAddress = buildFullAddress(addr);
+    onChange({ ...addr, fullAddress, lat, lng });
+  }, [onChange]);
+
   // Load Google Maps script
+  useEffect(() => {
+    if (mapLoaded) return;
+    const existingScript = document.querySelector('script[src*="maps.googleapis.com"]');
+    if (existingScript) {
+      setMapLoaded(true);
+      setLoadingMap(false);
+      return;
+    }
+
+    const fetchKeyAndLoad = async () => {
+      try {
+        const { data, error } = await supabase.functions.invoke("get-maps-key");
+        if (error || !data?.key) {
+          console.error("Failed to fetch Maps API key", error);
+          setLoadingMap(false);
+          return;
+        }
+        const script = document.createElement("script");
+        script.src = `https://maps.googleapis.com/maps/api/js?key=${data.key}&libraries=places`;
+        script.async = true;
+        script.defer = true;
+        script.onload = () => {
+          setMapLoaded(true);
+          setLoadingMap(false);
+        };
+        script.onerror = () => setLoadingMap(false);
+        document.head.appendChild(script);
+      } catch {
+        setLoadingMap(false);
+      }
+    };
+    fetchKeyAndLoad();
+  }, [mapLoaded]);
+
+  // Initialize map
   useEffect(() => {
     if (!mapLoaded || !mapRef.current || mapInstanceRef.current) return;
 
