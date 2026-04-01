@@ -8,23 +8,37 @@ import { Leaf, Store } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 
-const LoginVendor = () => {
+const SignupVendor = () => {
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [address, setAddress] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (password.length < 6) {
+      toast.error("Password must be at least 6 characters");
+      return;
+    }
     setLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: { name, phone, address, role: "vendor" },
+        emailRedirectTo: window.location.origin,
+      },
+    });
     setLoading(false);
     if (error) {
       toast.error(error.message);
       return;
     }
-    toast.success("Vendor login successful!");
-    navigate("/listings");
+    toast.success("Account created! Please check your email to verify.");
+    navigate("/login/vendor");
   };
 
   return (
@@ -43,32 +57,38 @@ const LoginVendor = () => {
 
         <Card>
           <CardHeader className="text-center">
-            <CardTitle>Vendor Login</CardTitle>
-            <CardDescription>Sign in to manage your food listings and donations</CardDescription>
+            <CardTitle>Vendor Sign Up</CardTitle>
+            <CardDescription>Create an account to list food donations</CardDescription>
           </CardHeader>
           <CardContent>
-            <form onSubmit={handleLogin} className="space-y-4">
+            <form onSubmit={handleSignup} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="name">Business Name</Label>
+                <Input id="name" placeholder="Your business name" value={name} onChange={(e) => setName(e.target.value)} required />
+              </div>
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
                 <Input id="email" type="email" placeholder="vendor@example.com" value={email} onChange={(e) => setEmail(e.target.value)} required />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="phone">Phone</Label>
+                <Input id="phone" type="tel" placeholder="+1234567890" value={phone} onChange={(e) => setPhone(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="address">Address</Label>
+                <Input id="address" placeholder="Business address" value={address} onChange={(e) => setAddress(e.target.value)} />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="password">Password</Label>
                 <Input id="password" type="password" placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} required />
               </div>
               <Button type="submit" className="w-full" disabled={loading}>
-                {loading ? "Signing in..." : "Sign In"}
+                {loading ? "Creating account..." : "Create Account"}
               </Button>
             </form>
             <div className="mt-4 text-center text-sm text-muted-foreground">
-              Don't have an account?{" "}
-              <Link to="/signup/vendor" className="text-primary hover:underline">Sign Up</Link>
-            </div>
-            <div className="mt-2 text-center text-sm text-muted-foreground">
-              Not a vendor?{" "}
-              <Link to="/login/ngo" className="text-primary hover:underline">NGO Login</Link>
-              {" · "}
-              <Link to="/login/admin" className="text-primary hover:underline">Admin Login</Link>
+              Already have an account?{" "}
+              <Link to="/login/vendor" className="text-primary hover:underline">Sign In</Link>
             </div>
           </CardContent>
         </Card>
@@ -77,4 +97,4 @@ const LoginVendor = () => {
   );
 };
 
-export default LoginVendor;
+export default SignupVendor;
