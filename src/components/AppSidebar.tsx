@@ -1,4 +1,4 @@
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard,
   UtensilsCrossed,
@@ -10,6 +10,7 @@ import {
   Package,
   Settings,
   Leaf,
+  LogOut,
 } from "lucide-react";
 
 const navItems = [
@@ -26,6 +27,7 @@ const navItems = [
 
 const AppSidebar = () => {
   const location = useLocation();
+  const navigate = useNavigate();
 
   return (
     <aside className="fixed left-0 top-0 z-40 flex h-screen w-64 flex-col border-r border-border bg-card">
@@ -59,11 +61,18 @@ const AppSidebar = () => {
         })}
       </nav>
 
-      <div className="border-t border-border p-4">
+      <div className="border-t border-border p-4 space-y-3">
         <div className="rounded-lg bg-primary/5 p-3">
           <p className="text-xs font-semibold text-primary">Admin Portal</p>
           <p className="text-[11px] text-muted-foreground mt-0.5">admin@foodbridge.org</p>
         </div>
+        <button
+          onClick={() => navigate("/login/admin")}
+          className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-destructive hover:bg-destructive/10 transition-colors"
+        >
+          <LogOut className="h-4 w-4" />
+          Logout
+        </button>
       </div>
     </aside>
   );
