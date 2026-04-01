@@ -10,6 +10,9 @@ import Inventory from "./pages/Inventory";
 import Logistics from "./pages/Logistics";
 import AIInsights from "./pages/AIInsights";
 import Analytics from "./pages/Analytics";
+import LoginVendor from "./pages/LoginVendor";
+import LoginNGO from "./pages/LoginNGO";
+import LoginAdmin from "./pages/LoginAdmin";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
