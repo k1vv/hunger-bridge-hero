@@ -15,7 +15,6 @@ const PickupManagement = () => {
   const { data: pickups = [] } = useQuery({
     queryKey: ["vendor_pickups", user?.id],
     queryFn: async () => {
-      // First get food listings owned by this vendor
       const { data: vendorListings, error: listingsError } = await supabase
         .from("food_listings")
         .select("id")
@@ -25,15 +24,26 @@ const PickupManagement = () => {
       const listingIds = (vendorListings || []).map(l => l.id);
       if (listingIds.length === 0) return [];
 
-      // Then get claims for those listings
       const { data, error } = await supabase
         .from("claims")
-        .select("*, food_listings(*), profiles:ngo_user_id(name, email, phone)")
+        .select("*, food_listings(*)")
         .in("food_listing_id", listingIds)
         .in("status", ["pending", "confirmed", "in_transit"])
         .order("created_at", { ascending: false });
       if (error) throw error;
-      return data;
+
+      // Fetch NGO profiles separately
+      const ngoIds = [...new Set((data || []).map(c => c.ngo_user_id))];
+      let profilesMap: Record<string, any> = {};
+      if (ngoIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from("profiles")
+          .select("id, name, email, phone")
+          .in("id", ngoIds);
+        (profiles || []).forEach(p => { profilesMap[p.id] = p; });
+      }
+
+      return (data || []).map(c => ({ ...c, profiles: profilesMap[c.ngo_user_id] || null }));
     },
     enabled: !!user,
   });
