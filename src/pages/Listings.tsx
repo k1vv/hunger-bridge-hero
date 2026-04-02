@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import LocationPickerMap, { type PickedLocation } from "@/components/LocationPickerMap";
 
 const statusFilters: { label: string; value: ListingStatus | "all" }[] = [
   { label: "All", value: "all" },
@@ -31,7 +32,7 @@ const Listings = () => {
   const [category, setCategory] = useState("");
   const [quantity, setQuantity] = useState("");
   const [expiry, setExpiry] = useState("");
-  const [location, setLocation] = useState("");
+  const [pickupLocation, setPickupLocation] = useState<PickedLocation>({ address: "", lat: null, lng: null });
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
@@ -105,7 +106,7 @@ const Listings = () => {
     setCategory("");
     setQuantity("");
     setExpiry("");
-    setLocation("");
+    setPickupLocation({ address: "", lat: null, lng: null });
     removeImage();
   };
 
@@ -145,7 +146,9 @@ const Listings = () => {
         category,
         quantity,
         expiry_date: expiry,
-        pickup_location: location,
+        pickup_location: pickupLocation.address,
+        pickup_lat: pickupLocation.lat,
+        pickup_lng: pickupLocation.lng,
         image_url: imageUrl,
       });
 
@@ -226,16 +229,12 @@ const Listings = () => {
                     <Input id="quantity" placeholder="e.g. 50 kg" value={quantity} onChange={(e) => setQuantity(e.target.value)} required />
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-2">
-                    <Label htmlFor="expiry">Expiry Date</Label>
-                    <Input id="expiry" type="date" value={expiry} onChange={(e) => setExpiry(e.target.value)} required />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="location">Pickup Location</Label>
-                    <Input id="location" placeholder="e.g. Main St" value={location} onChange={(e) => setLocation(e.target.value)} required />
-                  </div>
+                <div className="space-y-2">
+                  <Label htmlFor="expiry">Expiry Date</Label>
+                  <Input id="expiry" type="date" value={expiry} onChange={(e) => setExpiry(e.target.value)} required />
                 </div>
+
+                <LocationPickerMap value={pickupLocation} onChange={setPickupLocation} />
 
                 {/* Image Upload */}
                 <div className="space-y-2">

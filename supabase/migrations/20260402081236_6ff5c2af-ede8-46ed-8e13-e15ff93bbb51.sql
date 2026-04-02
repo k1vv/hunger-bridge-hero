@@ -1,0 +1,4 @@
+
+ALTER TABLE public.food_listings
+ADD COLUMN pickup_lat DOUBLE PRECISION,
+ADD COLUMN pickup_lng DOUBLE PRECISION;
