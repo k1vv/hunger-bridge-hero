@@ -14,6 +14,60 @@ export type Database = {
   }
   public: {
     Tables: {
+      food_listings: {
+        Row: {
+          category: string
+          created_at: string
+          expiry_date: string
+          id: string
+          image_url: string | null
+          pickup_deadline: string | null
+          pickup_location: string
+          quantity: string
+          reserved_at: string | null
+          reserved_by: string | null
+          spoilage_risk: string | null
+          status: string
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          category: string
+          created_at?: string
+          expiry_date: string
+          id?: string
+          image_url?: string | null
+          pickup_deadline?: string | null
+          pickup_location: string
+          quantity: string
+          reserved_at?: string | null
+          reserved_by?: string | null
+          spoilage_risk?: string | null
+          status?: string
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          expiry_date?: string
+          id?: string
+          image_url?: string | null
+          pickup_deadline?: string | null
+          pickup_location?: string
+          quantity?: string
+          reserved_at?: string | null
+          reserved_by?: string | null
+          spoilage_risk?: string | null
+          status?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           address: string | null
