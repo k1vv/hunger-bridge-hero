@@ -15,10 +15,21 @@ const PickupManagement = () => {
   const { data: pickups = [] } = useQuery({
     queryKey: ["vendor_pickups", user?.id],
     queryFn: async () => {
+      // First get food listings owned by this vendor
+      const { data: vendorListings, error: listingsError } = await supabase
+        .from("food_listings")
+        .select("id")
+        .eq("user_id", user!.id);
+      if (listingsError) throw listingsError;
+
+      const listingIds = (vendorListings || []).map(l => l.id);
+      if (listingIds.length === 0) return [];
+
+      // Then get claims for those listings
       const { data, error } = await supabase
         .from("claims")
-        .select("*, food_listings!inner(*), profiles:ngo_user_id(name, email, phone)")
-        .eq("food_listings.user_id", user!.id)
+        .select("*, food_listings(*), profiles:ngo_user_id(name, email, phone)")
+        .in("food_listing_id", listingIds)
         .in("status", ["pending", "confirmed", "in_transit"])
         .order("created_at", { ascending: false });
       if (error) throw error;

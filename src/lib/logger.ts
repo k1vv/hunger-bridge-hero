@@ -33,16 +33,6 @@ class Logger {
     system: [],
   };
   private maxLogsPerRole = 500;
-  private autoDownloadOnError = true;
-  private errorCountThreshold = 5;
-  private errorCount = 0;
-
-  private formatLogLine(entry: LogEntry): string {
-    const details = entry.details ? ` | Details: ${JSON.stringify(entry.details)}` : "";
-    const error = entry.error ? ` | Error: ${entry.error}` : "";
-    const userId = entry.userId ? ` | UserId: ${entry.userId}` : "";
-    return `[${entry.timestamp}] [${entry.level.toUpperCase()}] ${entry.action}${details}${error}${userId}`;
-  }
 
   private formatConsoleLog(entry: LogEntry): void {
     const roleLabel = `[${entry.role.toUpperCase()}]`;
@@ -89,16 +79,6 @@ class Logger {
       roleLogs.shift();
     }
     this.formatConsoleLog(entry);
-
-    // Auto-download on error threshold
-    if (entry.level === "error") {
-      this.errorCount++;
-      if (this.autoDownloadOnError && this.errorCount >= this.errorCountThreshold) {
-        console.log(`%c[LOGGER] Error threshold reached (${this.errorCount}). Auto-downloading logs...`, "color: #ef4444; font-weight: bold");
-        this.downloadLogFile(entry.role);
-        this.errorCount = 0;
-      }
-    }
   }
 
   private createEntry(
@@ -120,72 +100,6 @@ class Logger {
     };
   }
 
-  // Download log file for a specific role
-  downloadLogFile(role: UserRole): void {
-    const roleLogs = this.logs[role];
-    if (roleLogs.length === 0) {
-      console.log(`%c[LOGGER] No logs to download for ${role}`, "color: #f59e0b");
-      return;
-    }
-
-    const content = roleLogs.map((entry) => this.formatLogLine(entry)).join("\n");
-    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-    const filename = `${role}_logger_${timestamp}.log`;
-
-    const blob = new Blob([content], { type: "text/plain" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-
-    console.log(`%c[LOGGER] Downloaded ${filename} (${roleLogs.length} entries)`, "color: #10b981; font-weight: bold");
-  }
-
-  // Download all log files (one per role)
-  downloadAllLogFiles(): void {
-    const roles: UserRole[] = ["vendor", "ngo", "admin", "system"];
-    roles.forEach((role) => {
-      if (this.logs[role].length > 0) {
-        this.downloadLogFile(role);
-      }
-    });
-  }
-
-  // Download combined log file
-  downloadCombinedLogFile(): void {
-    const allLogs: LogEntry[] = [
-      ...this.logs.vendor,
-      ...this.logs.ngo,
-      ...this.logs.admin,
-      ...this.logs.system,
-    ].sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
-
-    if (allLogs.length === 0) {
-      console.log("%c[LOGGER] No logs to download", "color: #f59e0b");
-      return;
-    }
-
-    const content = allLogs.map((entry) => `[${entry.role.toUpperCase()}] ${this.formatLogLine(entry)}`).join("\n");
-    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-    const filename = `all_logs_${timestamp}.log`;
-
-    const blob = new Blob([content], { type: "text/plain" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-
-    console.log(`%c[LOGGER] Downloaded ${filename} (${allLogs.length} entries)`, "color: #10b981; font-weight: bold");
-  }
-
   // Vendor logging methods
   vendor = {
     debug: (action: string, details?: Record<string, unknown>, userId?: string) =>
@@ -196,7 +110,6 @@ class Logger {
       this.addLog(this.createEntry("warn", "vendor", action, details, undefined, userId)),
     error: (action: string, error: string, details?: Record<string, unknown>, userId?: string) =>
       this.addLog(this.createEntry("error", "vendor", action, details, error, userId)),
-    download: () => this.downloadLogFile("vendor"),
   };
 
   // NGO logging methods
@@ -209,7 +122,6 @@ class Logger {
       this.addLog(this.createEntry("warn", "ngo", action, details, undefined, userId)),
     error: (action: string, error: string, details?: Record<string, unknown>, userId?: string) =>
       this.addLog(this.createEntry("error", "ngo", action, details, error, userId)),
-    download: () => this.downloadLogFile("ngo"),
   };
 
   // Admin logging methods
@@ -222,7 +134,6 @@ class Logger {
       this.addLog(this.createEntry("warn", "admin", action, details, undefined, userId)),
     error: (action: string, error: string, details?: Record<string, unknown>, userId?: string) =>
       this.addLog(this.createEntry("error", "admin", action, details, error, userId)),
-    download: () => this.downloadLogFile("admin"),
   };
 
   // System logging methods
@@ -235,7 +146,6 @@ class Logger {
       this.addLog(this.createEntry("warn", "system", action, details)),
     error: (action: string, error: string, details?: Record<string, unknown>) =>
       this.addLog(this.createEntry("error", "system", action, details, error)),
-    download: () => this.downloadLogFile("system"),
   };
 
   // Get all logs
@@ -308,13 +218,6 @@ class Logger {
       },
     };
     console.log("%c[LOGGER] Summary:", "color: #3b82f6; font-weight: bold", summary);
-  }
-
-  // Configure auto-download on error
-  setAutoDownloadOnError(enabled: boolean, threshold: number = 5): void {
-    this.autoDownloadOnError = enabled;
-    this.errorCountThreshold = threshold;
-    console.log(`%c[LOGGER] Auto-download on error: ${enabled ? "enabled" : "disabled"} (threshold: ${threshold})`, "color: #6b7280");
   }
 }
 
