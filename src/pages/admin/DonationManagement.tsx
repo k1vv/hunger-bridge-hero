@@ -22,14 +22,24 @@ const DonationManagement = () => {
       logger.admin.info("Fetching all donation batches", undefined, user?.id);
       const { data, error } = await supabase
         .from("donation_batches")
-        .select("*, donation_items(*), profiles:vendor_id(name, email, business_name)")
+        .select("*, donation_items(*)")
         .order("created_at", { ascending: false });
       if (error) {
         logger.admin.error("Failed to fetch donation batches", error.message, { code: error.code }, user?.id);
         throw error;
       }
-      logger.admin.info("Successfully fetched donation batches", { count: data?.length || 0 }, user?.id);
-      return data;
+      const vendorIds = [...new Set((data || []).map((b: any) => b.vendor_id))];
+      let vendorMap: Record<string, any> = {};
+      if (vendorIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from("profiles")
+          .select("id, name, email, business_name")
+          .in("id", vendorIds);
+        (profiles || []).forEach((p: any) => { vendorMap[p.id] = p; });
+      }
+      const enriched = (data || []).map((b: any) => ({ ...b, profiles: vendorMap[b.vendor_id] || null }));
+      logger.admin.info("Successfully fetched donation batches", { count: enriched.length }, user?.id);
+      return enriched;
     },
   });
 
