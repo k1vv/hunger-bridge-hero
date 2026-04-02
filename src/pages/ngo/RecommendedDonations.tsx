@@ -1,78 +1,91 @@
 import PageLayout from "@/components/PageLayout";
 import { supabase } from "@/integrations/supabase/client";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Star, MapPin, Clock, Package } from "lucide-react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { Badge } from "@/components/ui/badge";
 
 const RecommendedDonations = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
 
-  const { data: listings = [] } = useQuery({
-    queryKey: ["recommended_listings"],
+  const { data: batches = [] } = useQuery({
+    queryKey: ["recommended_batches"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("food_listings")
-        .select("*, profiles:user_id(name, business_name)")
-        .eq("status", "available")
-        .order("expiry_date", { ascending: true })
+        .from("donation_batches")
+        .select("*, donation_items(*), profiles:vendor_id(name, business_name)")
+        .in("status", ["available", "partially_claimed"])
+        .order("pickup_date", { ascending: true })
         .limit(10);
       if (error) throw error;
       return data;
     },
   });
 
-  const claimMutation = useMutation({
-    mutationFn: async (listingId: string) => {
-      const { error } = await supabase.from("claims").insert({ food_listing_id: listingId, ngo_user_id: user!.id });
+  const claimAllMutation = useMutation({
+    mutationFn: async (batch: any) => {
+      const availableItems = (batch.donation_items || []).filter((i: any) => i.status === "available");
+      const ids = availableItems.map((i: any) => i.id);
+      const { error } = await supabase.from("donation_items").update({ status: "claimed", claimed_by: user!.id, claimed_at: new Date().toISOString() }).in("id", ids);
       if (error) throw error;
-      await supabase.from("food_listings").update({ status: "reserved", reserved_by: user!.id, reserved_at: new Date().toISOString() }).eq("id", listingId);
+      await supabase.from("donation_batches").update({ status: "reserved" }).eq("id", batch.id);
     },
     onSuccess: () => {
-      toast.success("Donation claimed!");
-      queryClient.invalidateQueries({ queryKey: ["recommended_listings"] });
-      queryClient.invalidateQueries({ queryKey: ["ngo_claims"] });
+      toast.success("All items claimed!");
+      queryClient.invalidateQueries({ queryKey: ["recommended_batches"] });
     },
     onError: (err: any) => toast.error(err.message),
   });
 
   return (
-    <PageLayout title="Recommended Donations" subtitle="AI-matched donations based on urgency and your preferences">
+    <PageLayout title="Recommended Donations" subtitle="Prioritized by urgency and proximity">
       <div className="space-y-4">
-        {listings.map((listing: any, i: number) => {
-          const daysToExpiry = Math.ceil((new Date(listing.expiry_date).getTime() - Date.now()) / 86400000);
-          const score = Math.max(10, 100 - daysToExpiry * 10);
+        {batches.map((batch: any, i: number) => {
+          const items = (batch.donation_items || []).filter((i: any) => i.status === "available");
+          if (items.length === 0) return null;
+          const urgentCount = items.filter((i: any) => i.spoilage_risk === "high").length;
+          const score = Math.min(100, 60 + urgentCount * 15);
+
           return (
-            <motion.div key={listing.id} initial={{ opacity: 0, x: -12 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.05 }}
+            <motion.div key={batch.id} initial={{ opacity: 0, x: -12 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.05 }}
               className="rounded-xl border border-border bg-card p-5 shadow-card">
               <div className="flex items-start justify-between">
-                <div className="flex items-start gap-4">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
+                <div className="flex items-start gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 flex-shrink-0">
                     <Star className="h-5 w-5 text-primary" />
                   </div>
                   <div>
                     <div className="flex items-center gap-2">
-                      <h3 className="text-sm font-semibold text-foreground">{listing.title}</h3>
+                      <span className="text-sm font-bold text-primary">{batch.batch_number}</span>
+                      <span className="text-sm font-medium text-foreground">{batch.profiles?.business_name || batch.profiles?.name}</span>
                       <span className="text-xs font-bold text-primary">{score}% match</span>
                     </div>
-                    <p className="text-xs text-muted-foreground">{listing.profiles?.business_name || listing.profiles?.name}</p>
-                    <div className="flex flex-wrap gap-3 mt-2 text-xs text-muted-foreground">
-                      <span className="flex items-center gap-1"><Package className="h-3 w-3" /> {listing.category} · {listing.quantity}</span>
-                      <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> {daysToExpiry <= 0 ? "Expired" : `${daysToExpiry}d left`}</span>
-                      <span className="flex items-center gap-1"><MapPin className="h-3 w-3" /> {listing.pickup_location}</span>
+                    <div className="flex flex-wrap gap-3 mt-1 text-xs text-muted-foreground">
+                      <span className="flex items-center gap-1"><MapPin className="h-3 w-3" /> {batch.pickup_location}</span>
+                      <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> {batch.pickup_date}</span>
+                      <span className="flex items-center gap-1"><Package className="h-3 w-3" /> {items.length} items</span>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5 mt-2">
+                      {items.map((item: any) => (
+                        <span key={item.id} className={`text-xs px-2 py-0.5 rounded-full ${item.spoilage_risk === "high" ? "bg-destructive/10 text-destructive" : "bg-muted text-muted-foreground"}`}>
+                          {item.quantity} {item.unit} {item.food_name}
+                        </span>
+                      ))}
                     </div>
                   </div>
                 </div>
-                <Button size="sm" onClick={() => claimMutation.mutate(listing.id)} disabled={claimMutation.isPending}>Claim</Button>
+                <Button size="sm" onClick={() => claimAllMutation.mutate(batch)} disabled={claimAllMutation.isPending}>
+                  Claim All
+                </Button>
               </div>
             </motion.div>
           );
         })}
-        {listings.length === 0 && <div className="text-center py-12 text-sm text-muted-foreground">No recommendations available</div>}
+        {batches.length === 0 && <div className="text-center py-12 text-sm text-muted-foreground">No recommendations available</div>}
       </div>
     </PageLayout>
   );
