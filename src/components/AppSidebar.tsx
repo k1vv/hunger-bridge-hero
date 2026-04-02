@@ -9,7 +9,6 @@ import {
   BarChart3,
   User,
   Search,
-  Star,
   Package,
   Users as UsersIcon,
   ShieldCheck,
@@ -40,7 +39,6 @@ const vendorNav: NavItem[] = [
 const ngoNav: NavItem[] = [
   { label: "Dashboard", icon: LayoutDashboard, path: "/" },
   { label: "Available Donations", icon: Search, path: "/ngo/available" },
-  { label: "Recommended", icon: Star, path: "/ngo/recommended" },
   { label: "My Claims", icon: ClipboardList, path: "/ngo/claims" },
   { label: "Inventory", icon: Package, path: "/ngo/inventory" },
   { label: "Distribution", icon: HandHeart, path: "/ngo/distribution" },
@@ -72,8 +70,9 @@ const AppSidebar = () => {
   const roleLabel = role === "admin" ? "Admin Portal" : role === "ngo" ? "NGO Portal" : "Vendor Portal";
 
   const handleLogout = async () => {
+    const loginPath = role === "admin" ? "/login/admin" : role === "ngo" ? "/login/ngo" : "/login/vendor";
     await signOut();
-    navigate("/login/vendor");
+    navigate(loginPath);
   };
 
   return (

@@ -28,7 +28,6 @@ import LoginNGO from "./pages/ngo/LoginNGO";
 import SignupNGO from "./pages/ngo/SignupNGO";
 import NgoDashboard from "./pages/ngo/NgoDashboard";
 import AvailableDonations from "./pages/ngo/AvailableDonations";
-import RecommendedDonations from "./pages/ngo/RecommendedDonations";
 import MyClaims from "./pages/ngo/MyClaims";
 import CollectionManagement from "./pages/ngo/CollectionManagement";
 import NgoInventory from "./pages/ngo/NgoInventory";
@@ -86,7 +85,6 @@ const App = () => (
             {/* NGO routes */}
             <Route path="/ngo/dashboard" element={<ProtectedRoute allowedRoles={["ngo"]}><NgoDashboard /></ProtectedRoute>} />
             <Route path="/ngo/available" element={<ProtectedRoute allowedRoles={["ngo"]}><AvailableDonations /></ProtectedRoute>} />
-            <Route path="/ngo/recommended" element={<ProtectedRoute allowedRoles={["ngo"]}><RecommendedDonations /></ProtectedRoute>} />
             <Route path="/ngo/claims" element={<ProtectedRoute allowedRoles={["ngo"]}><MyClaims /></ProtectedRoute>} />
             <Route path="/ngo/collection" element={<ProtectedRoute allowedRoles={["ngo"]}><CollectionManagement /></ProtectedRoute>} />
             <Route path="/ngo/inventory" element={<ProtectedRoute allowedRoles={["ngo"]}><NgoInventory /></ProtectedRoute>} />
