@@ -18,7 +18,7 @@ const RecommendedDonations = () => {
       logger.ngo.info("Fetching recommended donations", undefined, user?.id);
       const { data, error } = await supabase
         .from("donation_batches")
-        .select("*, donation_items(*), profiles:vendor_id(name, business_name)")
+        .select("*, donation_items(*)")
         .in("status", ["available", "partially_claimed"])
         .order("pickup_date", { ascending: true })
         .limit(10);
@@ -26,8 +26,19 @@ const RecommendedDonations = () => {
         logger.ngo.error("Failed to fetch recommended donations", error.message, { code: error.code }, user?.id);
         throw error;
       }
-      logger.ngo.info("Successfully fetched recommended donations", { count: data?.length || 0 }, user?.id);
-      return data;
+      // Fetch vendor profiles separately
+      const vendorIds = [...new Set((data || []).map((b: any) => b.vendor_id))];
+      let vendorMap: Record<string, any> = {};
+      if (vendorIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from("profiles")
+          .select("id, name, business_name")
+          .in("id", vendorIds);
+        (profiles || []).forEach((p: any) => { vendorMap[p.id] = p; });
+      }
+      const enriched = (data || []).map((b: any) => ({ ...b, profiles: vendorMap[b.vendor_id] || null }));
+      logger.ngo.info("Successfully fetched recommended donations", { count: enriched.length }, user?.id);
+      return enriched;
     },
   });
 
