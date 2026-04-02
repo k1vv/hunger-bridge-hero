@@ -146,7 +146,9 @@ const Listings = () => {
         category,
         quantity,
         expiry_date: expiry,
-        pickup_location: location,
+        pickup_location: pickupLocation.address,
+        pickup_lat: pickupLocation.lat,
+        pickup_lng: pickupLocation.lng,
         image_url: imageUrl,
       });
 
