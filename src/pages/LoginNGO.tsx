@@ -24,7 +24,7 @@ const LoginNGO = () => {
       return;
     }
     toast.success("NGO login successful!");
-    navigate("/ngos");
+    navigate("/");
   };
 
   return (
