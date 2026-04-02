@@ -210,6 +210,134 @@ export type Database = {
           },
         ]
       }
+      donation_batches: {
+        Row: {
+          batch_number: string
+          contact_person: string | null
+          contact_phone: string | null
+          created_at: string
+          donation_type: string
+          id: string
+          notes: string | null
+          pickup_date: string
+          pickup_lat: number | null
+          pickup_lng: number | null
+          pickup_location: string
+          pickup_time_end: string | null
+          pickup_time_start: string | null
+          status: string
+          updated_at: string
+          vendor_id: string
+        }
+        Insert: {
+          batch_number?: string
+          contact_person?: string | null
+          contact_phone?: string | null
+          created_at?: string
+          donation_type?: string
+          id?: string
+          notes?: string | null
+          pickup_date?: string
+          pickup_lat?: number | null
+          pickup_lng?: number | null
+          pickup_location: string
+          pickup_time_end?: string | null
+          pickup_time_start?: string | null
+          status?: string
+          updated_at?: string
+          vendor_id: string
+        }
+        Update: {
+          batch_number?: string
+          contact_person?: string | null
+          contact_phone?: string | null
+          created_at?: string
+          donation_type?: string
+          id?: string
+          notes?: string | null
+          pickup_date?: string
+          pickup_lat?: number | null
+          pickup_lng?: number | null
+          pickup_location?: string
+          pickup_time_end?: string | null
+          pickup_time_start?: string | null
+          status?: string
+          updated_at?: string
+          vendor_id?: string
+        }
+        Relationships: []
+      }
+      donation_items: {
+        Row: {
+          batch_id: string
+          category: string
+          claimed_at: string | null
+          claimed_by: string | null
+          created_at: string
+          expiry_date: string | null
+          expiry_time: string | null
+          food_name: string
+          halal_status: string
+          id: string
+          image_url: string | null
+          notes: string | null
+          quantity: number
+          spoilage_risk: string | null
+          status: string
+          storage_condition: string
+          unit: string
+          updated_at: string
+        }
+        Insert: {
+          batch_id: string
+          category: string
+          claimed_at?: string | null
+          claimed_by?: string | null
+          created_at?: string
+          expiry_date?: string | null
+          expiry_time?: string | null
+          food_name: string
+          halal_status?: string
+          id?: string
+          image_url?: string | null
+          notes?: string | null
+          quantity: number
+          spoilage_risk?: string | null
+          status?: string
+          storage_condition?: string
+          unit?: string
+          updated_at?: string
+        }
+        Update: {
+          batch_id?: string
+          category?: string
+          claimed_at?: string | null
+          claimed_by?: string | null
+          created_at?: string
+          expiry_date?: string | null
+          expiry_time?: string | null
+          food_name?: string
+          halal_status?: string
+          id?: string
+          image_url?: string | null
+          notes?: string | null
+          quantity?: number
+          spoilage_risk?: string | null
+          status?: string
+          storage_condition?: string
+          unit?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "donation_items_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "donation_batches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       food_listings: {
         Row: {
           category: string
