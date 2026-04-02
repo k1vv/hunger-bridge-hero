@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import LocationPickerMap, { type PickedLocation } from "@/components/LocationPickerMap";
 
 const statusFilters: { label: string; value: ListingStatus | "all" }[] = [
   { label: "All", value: "all" },
