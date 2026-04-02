@@ -46,7 +46,10 @@ const LocationPickerMap = ({ value, onChange }: LocationPickerMapProps) => {
         script.src = `https://maps.googleapis.com/maps/api/js?key=${data.key}&libraries=places`;
         script.async = true;
         script.defer = true;
-        script.onload = () => { setMapLoaded(true); setLoadingMap(false); };
+        script.onload = () => {
+          setMapLoaded(true);
+          setLoadingMap(false);
+        };
         script.onerror = () => setLoadingMap(false);
         document.head.appendChild(script);
       } catch {
@@ -165,9 +168,6 @@ const LocationPickerMap = ({ value, onChange }: LocationPickerMapProps) => {
           </div>
         )}
       </div>
-      {value.address && (
-        <p className="text-xs text-muted-foreground truncate">📍 {value.address}</p>
-      )}
     </div>
   );
 };
