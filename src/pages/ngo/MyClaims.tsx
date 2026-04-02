@@ -24,7 +24,7 @@ const MyClaims = () => {
       logger.ngo.info("Fetching claimed items", undefined, user?.id);
       const { data, error } = await supabase
         .from("donation_items")
-        .select("*, donation_batches(*, profiles:vendor_id(name, business_name))")
+        .select("*, donation_batches(batch_number, pickup_location, pickup_date, pickup_time_start, pickup_time_end, vendor_id)")
         .eq("claimed_by", user!.id)
         .order("claimed_at", { ascending: false });
       if (error) {
