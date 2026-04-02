@@ -32,7 +32,7 @@ const Listings = () => {
   const [category, setCategory] = useState("");
   const [quantity, setQuantity] = useState("");
   const [expiry, setExpiry] = useState("");
-  const [location, setLocation] = useState("");
+  const [pickupLocation, setPickupLocation] = useState<PickedLocation>({ address: "", lat: null, lng: null });
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
