@@ -188,33 +188,36 @@ const AvailableDonations = () => {
 
               return (
                 <motion.div key={batch.id} initial={{ opacity: 0, x: -12 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.05 }}
-                  className="inline-block w-72 flex-shrink-0 rounded-xl border border-border bg-card p-4 shadow-card whitespace-normal">
-                  <div className="flex items-center gap-2 mb-2">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 flex-shrink-0">
-                      <Star className="h-4 w-4 text-primary" />
+                  className="inline-flex w-72 h-72 flex-shrink-0 flex-col rounded-xl border border-border bg-card shadow-card whitespace-normal">
+                  <div className="p-4 flex-1 min-h-0 overflow-y-auto">
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 flex-shrink-0">
+                        <Star className="h-4 w-4 text-primary" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-xs font-bold text-primary truncate">{batch.batch_number}</p>
+                        <p className="text-xs text-muted-foreground truncate">{batch.profiles?.business_name || batch.profiles?.name}</p>
+                      </div>
+                      <span className="ml-auto text-xs font-bold text-primary flex-shrink-0">{score}%</span>
                     </div>
-                    <div className="min-w-0">
-                      <p className="text-xs font-bold text-primary truncate">{batch.batch_number}</p>
-                      <p className="text-xs text-muted-foreground truncate">{batch.profiles?.business_name || batch.profiles?.name}</p>
+                    <div className="space-y-1 text-xs text-muted-foreground mb-3">
+                      <span className="flex items-center gap-1"><MapPin className="h-3 w-3 flex-shrink-0" /> <span className="truncate">{batch.pickup_location}</span></span>
+                      <span className="flex items-center gap-1"><Clock className="h-3 w-3 flex-shrink-0" /> {batch.pickup_date}</span>
+                      <span className="flex items-center gap-1"><Package className="h-3 w-3 flex-shrink-0" /> {items.length} items</span>
                     </div>
-                    <span className="ml-auto text-xs font-bold text-primary flex-shrink-0">{score}%</span>
+                    <div className="flex flex-wrap gap-1">
+                      {items.map((item: any) => (
+                        <span key={item.id} className={`text-xs px-2 py-0.5 rounded-full ${item.spoilage_risk === "high" ? "bg-destructive/10 text-destructive" : "bg-muted text-muted-foreground"}`}>
+                          {item.quantity} {item.unit} {item.food_name}
+                        </span>
+                      ))}
+                    </div>
                   </div>
-                  <div className="space-y-1 text-xs text-muted-foreground mb-3">
-                    <span className="flex items-center gap-1"><MapPin className="h-3 w-3 flex-shrink-0" /> <span className="truncate">{batch.pickup_location}</span></span>
-                    <span className="flex items-center gap-1"><Clock className="h-3 w-3 flex-shrink-0" /> {batch.pickup_date}</span>
-                    <span className="flex items-center gap-1"><Package className="h-3 w-3 flex-shrink-0" /> {items.length} items</span>
+                  <div className="p-4 pt-0">
+                    <Button size="sm" className="w-full h-9 text-xs" onClick={() => claimAllMutation.mutate(batch)} disabled={claimAllMutation.isPending}>
+                      Claim All
+                    </Button>
                   </div>
-                  <div className="flex flex-wrap gap-1 mb-3">
-                    {items.slice(0, 3).map((item: any) => (
-                      <span key={item.id} className={`text-xs px-2 py-0.5 rounded-full ${item.spoilage_risk === "high" ? "bg-destructive/10 text-destructive" : "bg-muted text-muted-foreground"}`}>
-                        {item.quantity} {item.unit} {item.food_name}
-                      </span>
-                    ))}
-                    {items.length > 3 && <span className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground">+{items.length - 3}</span>}
-                  </div>
-                  <Button size="sm" className="w-full h-8 text-xs" onClick={() => claimAllMutation.mutate(batch)} disabled={claimAllMutation.isPending}>
-                    Claim All
-                  </Button>
                 </motion.div>
               );
             })}
