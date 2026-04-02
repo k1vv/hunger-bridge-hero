@@ -17,12 +17,30 @@ const LoginVendor = () => {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    setLoading(false);
+
+    const { data: authData, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) {
+      setLoading(false);
       toast.error(error.message);
       return;
     }
+
+    // Check if user has vendor role
+    const { data: roles } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", authData.user.id);
+
+    const hasVendorRole = roles?.some((r) => r.role === "vendor");
+
+    if (!hasVendorRole) {
+      await supabase.auth.signOut();
+      setLoading(false);
+      toast.error("This account is not registered as a Vendor. Please use the correct login portal.");
+      return;
+    }
+
+    setLoading(false);
     toast.success("Vendor login successful!");
     navigate("/");
   };
