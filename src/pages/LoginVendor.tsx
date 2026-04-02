@@ -24,7 +24,7 @@ const LoginVendor = () => {
       return;
     }
     toast.success("Vendor login successful!");
-    navigate("/listings");
+    navigate("/");
   };
 
   return (
