@@ -33,6 +33,7 @@ class Logger {
     system: [],
   };
   private maxLogsPerRole = 500;
+  private errorCount = 0;
 
   private formatConsoleLog(entry: LogEntry): void {
     const roleLabel = `[${entry.role.toUpperCase()}]`;
