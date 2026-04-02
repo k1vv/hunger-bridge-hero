@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 import { Package, MapPin, Clock } from "lucide-react";
+import { logger } from "@/lib/logger";
 
 const statusFilters = ["all", "claimed", "completed", "cancelled"] as const;
 
@@ -20,12 +21,17 @@ const MyClaims = () => {
   const { data: claimedItems = [] } = useQuery({
     queryKey: ["ngo_claimed_items", user?.id],
     queryFn: async () => {
+      logger.ngo.info("Fetching claimed items", undefined, user?.id);
       const { data, error } = await supabase
         .from("donation_items")
         .select("*, donation_batches(*, profiles:vendor_id(name, business_name))")
         .eq("claimed_by", user!.id)
         .order("claimed_at", { ascending: false });
-      if (error) throw error;
+      if (error) {
+        logger.ngo.error("Failed to fetch claimed items", error.message, { code: error.code }, user?.id);
+        throw error;
+      }
+      logger.ngo.info("Successfully fetched claimed items", { count: data?.length || 0 }, user?.id);
       return data;
     },
     enabled: !!user,
@@ -48,21 +54,34 @@ const MyClaims = () => {
 
   const cancelItemMutation = useMutation({
     mutationFn: async (item: any) => {
+      logger.ngo.info("Cancelling item claim", { itemId: item.id, batchId: item.batch_id, foodName: item.food_name }, user?.id);
       const { error } = await supabase.from("donation_items").update({ status: "available", claimed_by: null, claimed_at: null }).eq("id", item.id);
-      if (error) throw error;
+      if (error) {
+        logger.ngo.error("Failed to cancel item claim", error.message, { itemId: item.id, code: error.code }, user?.id);
+        throw error;
+      }
+      logger.ngo.info("Successfully cancelled item claim", { itemId: item.id }, user?.id);
+
       // Check if batch should go back to available
+      logger.ngo.debug("Checking remaining claimed items in batch", { batchId: item.batch_id }, user?.id);
       const { data: remaining } = await supabase.from("donation_items").select("id").eq("batch_id", item.batch_id).neq("status", "available");
       if ((remaining?.length || 0) <= 1) {
+        logger.ngo.debug("Updating batch to available status", { batchId: item.batch_id }, user?.id);
         await supabase.from("donation_batches").update({ status: "available" }).eq("id", item.batch_id);
       } else {
+        logger.ngo.debug("Updating batch to partially_claimed status", { batchId: item.batch_id, remainingItems: remaining?.length }, user?.id);
         await supabase.from("donation_batches").update({ status: "partially_claimed" }).eq("id", item.batch_id);
       }
     },
     onSuccess: () => {
+      logger.ngo.info("Cancel claim process completed successfully", undefined, user?.id);
       toast.success("Item claim cancelled");
       queryClient.invalidateQueries({ queryKey: ["ngo_claimed_items"] });
     },
-    onError: (err: any) => toast.error(err.message),
+    onError: (err: any) => {
+      logger.ngo.error("Cancel claim process failed", err.message, { fullError: err }, user?.id);
+      toast.error(err.message);
+    },
   });
 
   return (

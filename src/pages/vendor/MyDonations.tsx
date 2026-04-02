@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Search, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
+import { logger } from "@/lib/logger";
 
 const statusFilters = ["all", "available", "partially_claimed", "reserved", "completed", "expired", "cancelled"] as const;
 
@@ -20,12 +21,17 @@ const MyDonations = () => {
   const { data: batches = [] } = useQuery({
     queryKey: ["vendor_batches", user?.id],
     queryFn: async () => {
+      logger.vendor.info("Fetching vendor donation batches", undefined, user?.id);
       const { data, error } = await supabase
         .from("donation_batches")
         .select("*, donation_items(*)")
         .eq("vendor_id", user!.id)
         .order("created_at", { ascending: false });
-      if (error) throw error;
+      if (error) {
+        logger.vendor.error("Failed to fetch vendor batches", error.message, { code: error.code }, user?.id);
+        throw error;
+      }
+      logger.vendor.info("Successfully fetched vendor batches", { count: data?.length || 0 }, user?.id);
       return data;
     },
     enabled: !!user,

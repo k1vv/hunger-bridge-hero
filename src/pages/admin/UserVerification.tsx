@@ -6,29 +6,46 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { CheckCircle, XCircle, User } from "lucide-react";
 import { motion } from "framer-motion";
+import { logger } from "@/lib/logger";
+import { useAuth } from "@/contexts/AuthContext";
 
 const UserVerification = () => {
+  const { user } = useAuth();
   const queryClient = useQueryClient();
 
   const { data: pendingUsers = [] } = useQuery({
     queryKey: ["pending_verification"],
     queryFn: async () => {
+      logger.admin.info("Fetching pending verification users", undefined, user?.id);
       const { data, error } = await supabase.from("profiles").select("*, user_roles(role)").eq("verification_status", "pending").order("created_at", { ascending: false });
-      if (error) throw error;
+      if (error) {
+        logger.admin.error("Failed to fetch pending users", error.message, { code: error.code }, user?.id);
+        throw error;
+      }
+      logger.admin.info("Successfully fetched pending users", { count: data?.length || 0 }, user?.id);
       return data;
     },
   });
 
   const updateStatus = useMutation({
     mutationFn: async ({ userId, status }: { userId: string; status: string }) => {
+      logger.admin.info("Updating user verification status", { targetUserId: userId, newStatus: status }, user?.id);
       const { error } = await supabase.from("profiles").update({ verification_status: status }).eq("id", userId);
-      if (error) throw error;
+      if (error) {
+        logger.admin.error("Failed to update verification status", error.message, { targetUserId: userId, newStatus: status, code: error.code }, user?.id);
+        throw error;
+      }
+      logger.admin.info("Successfully updated verification status", { targetUserId: userId, newStatus: status }, user?.id);
     },
-    onSuccess: (_, { status }) => {
+    onSuccess: (_, { status, userId }) => {
+      logger.admin.info("User verification update completed", { targetUserId: userId, newStatus: status }, user?.id);
       toast.success(`User ${status}!`);
       queryClient.invalidateQueries({ queryKey: ["pending_verification"] });
     },
-    onError: (err: any) => toast.error(err.message),
+    onError: (err: any) => {
+      logger.admin.error("User verification update failed", err.message, { fullError: err }, user?.id);
+      toast.error(err.message);
+    },
   });
 
   return (

@@ -6,7 +6,7 @@ import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
-import { Badge } from "@/components/ui/badge";
+import { logger } from "@/lib/logger";
 
 const RecommendedDonations = () => {
   const { user } = useAuth();
@@ -15,13 +15,18 @@ const RecommendedDonations = () => {
   const { data: batches = [] } = useQuery({
     queryKey: ["recommended_batches"],
     queryFn: async () => {
+      logger.ngo.info("Fetching recommended donations", undefined, user?.id);
       const { data, error } = await supabase
         .from("donation_batches")
         .select("*, donation_items(*), profiles:vendor_id(name, business_name)")
         .in("status", ["available", "partially_claimed"])
         .order("pickup_date", { ascending: true })
         .limit(10);
-      if (error) throw error;
+      if (error) {
+        logger.ngo.error("Failed to fetch recommended donations", error.message, { code: error.code }, user?.id);
+        throw error;
+      }
+      logger.ngo.info("Successfully fetched recommended donations", { count: data?.length || 0 }, user?.id);
       return data;
     },
   });
@@ -30,15 +35,31 @@ const RecommendedDonations = () => {
     mutationFn: async (batch: any) => {
       const availableItems = (batch.donation_items || []).filter((i: any) => i.status === "available");
       const ids = availableItems.map((i: any) => i.id);
+      logger.ngo.info("Claiming all items from batch", { batchId: batch.id, batchNumber: batch.batch_number, itemCount: ids.length }, user?.id);
+
       const { error } = await supabase.from("donation_items").update({ status: "claimed", claimed_by: user!.id, claimed_at: new Date().toISOString() }).in("id", ids);
-      if (error) throw error;
-      await supabase.from("donation_batches").update({ status: "reserved" }).eq("id", batch.id);
+      if (error) {
+        logger.ngo.error("Failed to claim all items", error.message, { batchId: batch.id, itemIds: ids, code: error.code }, user?.id);
+        throw error;
+      }
+      logger.ngo.info("Successfully claimed all items", { batchId: batch.id, itemCount: ids.length }, user?.id);
+
+      const { error: batchError } = await supabase.from("donation_batches").update({ status: "reserved" }).eq("id", batch.id);
+      if (batchError) {
+        logger.ngo.error("Failed to update batch status to reserved", batchError.message, { batchId: batch.id }, user?.id);
+      } else {
+        logger.ngo.info("Updated batch status to reserved", { batchId: batch.id }, user?.id);
+      }
     },
     onSuccess: () => {
+      logger.ngo.info("Claim all process completed successfully", undefined, user?.id);
       toast.success("All items claimed!");
       queryClient.invalidateQueries({ queryKey: ["recommended_batches"] });
     },
-    onError: (err: any) => toast.error(err.message),
+    onError: (err: any) => {
+      logger.ngo.error("Claim all process failed", err.message, { fullError: err }, user?.id);
+      toast.error(err.message);
+    },
   });
 
   return (

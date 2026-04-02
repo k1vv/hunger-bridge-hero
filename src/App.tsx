@@ -6,17 +6,14 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/contexts/AuthContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
 
-// Auth pages
-import LoginVendor from "./pages/LoginVendor";
-import LoginNGO from "./pages/LoginNGO";
-import LoginAdmin from "./pages/LoginAdmin";
-import SignupVendor from "./pages/SignupVendor";
-import SignupNGO from "./pages/SignupNGO";
-import NotFound from "./pages/NotFound";
-import RoleDashboard from "./pages/RoleDashboard";
-import Notifications from "./pages/Notifications";
+// Shared pages
+import NotFound from "./pages/shared/NotFound";
+import RoleDashboard from "./pages/shared/RoleDashboard";
+import Notifications from "./pages/shared/Notifications";
 
 // Vendor pages
+import LoginVendor from "./pages/vendor/LoginVendor";
+import SignupVendor from "./pages/vendor/SignupVendor";
 import VendorDashboard from "./pages/vendor/VendorDashboard";
 import CreateDonation from "./pages/vendor/CreateDonation";
 import MyDonations from "./pages/vendor/MyDonations";
@@ -27,6 +24,8 @@ import VendorProfile from "./pages/vendor/VendorProfile";
 import ImpactReport from "./pages/vendor/ImpactReport";
 
 // NGO pages
+import LoginNGO from "./pages/ngo/LoginNGO";
+import SignupNGO from "./pages/ngo/SignupNGO";
 import NgoDashboard from "./pages/ngo/NgoDashboard";
 import AvailableDonations from "./pages/ngo/AvailableDonations";
 import RecommendedDonations from "./pages/ngo/RecommendedDonations";
@@ -38,6 +37,7 @@ import NgoReports from "./pages/ngo/NgoReports";
 import NgoProfile from "./pages/ngo/NgoProfile";
 
 // Admin pages
+import LoginAdmin from "./pages/admin/LoginAdmin";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import UserManagement from "./pages/admin/UserManagement";
 import UserVerification from "./pages/admin/UserVerification";

@@ -1,11 +1,10 @@
-import { useState } from "react";
 import PageLayout from "@/components/PageLayout";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
 import { AlertTriangle, CheckCircle, Clock } from "lucide-react";
+import { logger } from "@/lib/logger";
 
 const NgoInventory = () => {
   const { user } = useAuth();
@@ -13,12 +12,17 @@ const NgoInventory = () => {
   const { data: inventory = [] } = useQuery({
     queryKey: ["ngo_inventory", user?.id],
     queryFn: async () => {
+      logger.ngo.info("Fetching inventory", undefined, user?.id);
       const { data, error } = await supabase
         .from("inventory")
         .select("*")
         .eq("ngo_user_id", user!.id)
         .order("received_at", { ascending: false });
-      if (error) throw error;
+      if (error) {
+        logger.ngo.error("Failed to fetch inventory", error.message, { code: error.code }, user?.id);
+        throw error;
+      }
+      logger.ngo.info("Successfully fetched inventory", { count: data?.length || 0 }, user?.id);
       return data;
     },
     enabled: !!user,

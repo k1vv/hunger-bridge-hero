@@ -14,6 +14,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import LocationPickerMap, { type PickedLocation } from "@/components/LocationPickerMap";
 import { ImagePlus, X, Plus, Trash2, Package, ChevronRight } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { logger } from "@/lib/logger";
 
 interface FoodItem {
   id: string;
@@ -108,12 +109,21 @@ const CreateDonation = () => {
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user) { toast.error("You must be logged in"); return; }
-    if (!validate()) return;
+    if (!user) {
+      logger.vendor.warn("Create donation attempted without login", undefined, undefined);
+      toast.error("You must be logged in");
+      return;
+    }
+    if (!validate()) {
+      logger.vendor.warn("Create donation validation failed", { itemCount: items.length }, user.id);
+      return;
+    }
     setCreating(true);
+    logger.vendor.info("Starting donation creation", { itemCount: items.length, donationType, pickupLocation: pickupLocation.address }, user.id);
 
     try {
       // 1. Create batch
+      logger.vendor.debug("Creating donation batch", { pickupLocation: pickupLocation.address, pickupDate, donationType }, user.id);
       const { data: batch, error: batchError } = await supabase.from("donation_batches").insert({
         vendor_id: user.id,
         pickup_location: pickupLocation.address,
@@ -128,18 +138,28 @@ const CreateDonation = () => {
         notes: batchNotes || null,
       }).select("id").single();
 
-      if (batchError) throw batchError;
+      if (batchError) {
+        logger.vendor.error("Failed to create donation batch", batchError.message, { code: batchError.code, details: batchError.details }, user.id);
+        throw batchError;
+      }
+      logger.vendor.info("Successfully created donation batch", { batchId: batch.id }, user.id);
 
       // 2. Upload images & create items
-      const itemInserts = await Promise.all(items.map(async (item) => {
+      logger.vendor.debug("Processing food items", { itemCount: items.length }, user.id);
+      const itemInserts = await Promise.all(items.map(async (item, index) => {
         let imageUrl: string | null = null;
         if (item.imageFile) {
+          logger.vendor.debug("Uploading image for item", { itemIndex: index, foodName: item.foodName }, user.id);
           const ext = item.imageFile.name.split(".").pop();
           const path = `${user.id}/${crypto.randomUUID()}.${ext}`;
           const { error: uploadError } = await supabase.storage.from("food-images").upload(path, item.imageFile);
-          if (uploadError) throw uploadError;
+          if (uploadError) {
+            logger.vendor.error("Failed to upload image", uploadError.message, { itemIndex: index, foodName: item.foodName }, user.id);
+            throw uploadError;
+          }
           const { data: urlData } = supabase.storage.from("food-images").getPublicUrl(path);
           imageUrl = urlData.publicUrl;
+          logger.vendor.debug("Image uploaded successfully", { itemIndex: index, imageUrl }, user.id);
         }
 
         // Auto-tag spoilage risk
@@ -165,13 +185,19 @@ const CreateDonation = () => {
         };
       }));
 
+      logger.vendor.debug("Inserting donation items", { itemCount: itemInserts.length }, user.id);
       const { error: itemsError } = await supabase.from("donation_items").insert(itemInserts);
-      if (itemsError) throw itemsError;
+      if (itemsError) {
+        logger.vendor.error("Failed to insert donation items", itemsError.message, { code: itemsError.code, batchId: batch.id }, user.id);
+        throw itemsError;
+      }
 
+      logger.vendor.info("Donation created successfully", { batchId: batch.id, itemCount: items.length }, user.id);
       toast.success(`Donation batch created with ${items.length} item(s)!`);
       queryClient.invalidateQueries({ queryKey: ["vendor_batches"] });
       navigate("/vendor/donations");
     } catch (err: any) {
+      logger.vendor.error("Donation creation failed", err.message, { fullError: err }, user.id);
       toast.error(err.message || "Failed to create donation");
     } finally {
       setCreating(false);

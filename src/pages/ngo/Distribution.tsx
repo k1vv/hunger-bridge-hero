@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Plus, HandHeart } from "lucide-react";
 import { motion } from "framer-motion";
+import { logger } from "@/lib/logger";
 
 const Distribution = () => {
   const { user } = useAuth();
@@ -24,8 +25,13 @@ const Distribution = () => {
   const { data: records = [] } = useQuery({
     queryKey: ["distribution_records", user?.id],
     queryFn: async () => {
+      logger.ngo.info("Fetching distribution records", undefined, user?.id);
       const { data, error } = await supabase.from("distribution_records").select("*").eq("ngo_user_id", user!.id).order("distribution_date", { ascending: false });
-      if (error) throw error;
+      if (error) {
+        logger.ngo.error("Failed to fetch distribution records", error.message, { code: error.code }, user?.id);
+        throw error;
+      }
+      logger.ngo.info("Successfully fetched distribution records", { count: data?.length || 0 }, user?.id);
       return data;
     },
     enabled: !!user,
@@ -33,6 +39,7 @@ const Distribution = () => {
 
   const createMutation = useMutation({
     mutationFn: async () => {
+      logger.ngo.info("Creating distribution record", { beneficiaryGroup, quantityDistributed, distributionDate }, user?.id);
       const { error } = await supabase.from("distribution_records").insert({
         ngo_user_id: user!.id,
         beneficiary_group: beneficiaryGroup,
@@ -40,15 +47,23 @@ const Distribution = () => {
         distribution_date: distributionDate,
         notes: notes || null,
       });
-      if (error) throw error;
+      if (error) {
+        logger.ngo.error("Failed to create distribution record", error.message, { code: error.code, beneficiaryGroup }, user?.id);
+        throw error;
+      }
+      logger.ngo.info("Successfully created distribution record", { beneficiaryGroup, quantityDistributed }, user?.id);
     },
     onSuccess: () => {
+      logger.ngo.info("Distribution record creation completed", undefined, user?.id);
       toast.success("Distribution recorded!");
       queryClient.invalidateQueries({ queryKey: ["distribution_records"] });
       setOpen(false);
       setBeneficiaryGroup(""); setQuantityDistributed(""); setNotes("");
     },
-    onError: (err: any) => toast.error(err.message),
+    onError: (err: any) => {
+      logger.ngo.error("Distribution record creation failed", err.message, { fullError: err }, user?.id);
+      toast.error(err.message);
+    },
   });
 
   return (

@@ -6,21 +6,29 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Search, Package, MapPin } from "lucide-react";
 import { motion } from "framer-motion";
+import { logger } from "@/lib/logger";
+import { useAuth } from "@/contexts/AuthContext";
 
 const statusFilters = ["all", "available", "partially_claimed", "reserved", "completed", "expired", "cancelled"] as const;
 
 const DonationManagement = () => {
+  const { user } = useAuth();
   const [filter, setFilter] = useState("all");
   const [search, setSearch] = useState("");
 
   const { data: batches = [] } = useQuery({
     queryKey: ["admin_all_batches"],
     queryFn: async () => {
+      logger.admin.info("Fetching all donation batches", undefined, user?.id);
       const { data, error } = await supabase
         .from("donation_batches")
         .select("*, donation_items(*), profiles:vendor_id(name, email, business_name)")
         .order("created_at", { ascending: false });
-      if (error) throw error;
+      if (error) {
+        logger.admin.error("Failed to fetch donation batches", error.message, { code: error.code }, user?.id);
+        throw error;
+      }
+      logger.admin.info("Successfully fetched donation batches", { count: data?.length || 0 }, user?.id);
       return data;
     },
   });

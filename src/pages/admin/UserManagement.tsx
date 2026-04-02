@@ -6,16 +6,24 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import { logger } from "@/lib/logger";
+import { useAuth } from "@/contexts/AuthContext";
 
 const UserManagement = () => {
+  const { user } = useAuth();
   const queryClient = useQueryClient();
   const [roleFilter, setRoleFilter] = useState("all");
 
   const { data: users = [] } = useQuery({
     queryKey: ["admin_users"],
     queryFn: async () => {
+      logger.admin.info("Fetching all users", undefined, user?.id);
       const { data, error } = await supabase.from("profiles").select("*, user_roles(role)").order("created_at", { ascending: false });
-      if (error) throw error;
+      if (error) {
+        logger.admin.error("Failed to fetch users", error.message, { code: error.code }, user?.id);
+        throw error;
+      }
+      logger.admin.info("Successfully fetched users", { count: data?.length || 0 }, user?.id);
       return data;
     },
   });

@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Search, MapPin, Clock, Package, Leaf, Thermometer } from "lucide-react";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
+import { logger } from "@/lib/logger";
 
 const AvailableDonations = () => {
   const { user } = useAuth();
@@ -24,16 +25,21 @@ const AvailableDonations = () => {
   const { data: batches = [] } = useQuery({
     queryKey: ["available_batches"],
     queryFn: async () => {
+      logger.ngo.info("Fetching available donation batches", undefined, user?.id);
       const { data, error } = await supabase
         .from("donation_batches")
         .select("*, donation_items(*)")
         .in("status", ["available", "partially_claimed"])
         .order("created_at", { ascending: false });
-      if (error) throw error;
+      if (error) {
+        logger.ngo.error("Failed to fetch donation batches", error.message, { code: error.code }, user?.id);
+        throw error;
+      }
 
       const vendorIds = Array.from(new Set((data || []).map((batch: any) => batch.vendor_id).filter(Boolean)));
 
       if (vendorIds.length === 0) {
+        logger.ngo.info("No batches found", { count: 0 }, user?.id);
         return data || [];
       }
 
@@ -42,10 +48,14 @@ const AvailableDonations = () => {
         .select("id, name, business_name, email")
         .in("id", vendorIds);
 
-      if (profilesError) throw profilesError;
+      if (profilesError) {
+        logger.ngo.error("Failed to fetch vendor profiles", profilesError.message, { code: profilesError.code }, user?.id);
+        throw profilesError;
+      }
 
       const profileMap = new Map((profiles || []).map((profile) => [profile.id, profile]));
 
+      logger.ngo.info("Successfully fetched available batches", { count: data?.length || 0 }, user?.id);
       return (data || []).map((batch: any) => ({
         ...batch,
         profiles: profileMap.get(batch.vendor_id) || null,
@@ -84,35 +94,63 @@ const AvailableDonations = () => {
 
   const claimMutation = useMutation({
     mutationFn: async ({ batchId, itemIds }: { batchId: string; itemIds: string[] }) => {
+      logger.ngo.info("Starting claim process", { batchId, itemIds, itemCount: itemIds.length }, user?.id);
+
       // Claim selected items
+      logger.ngo.debug("Updating donation_items status to claimed", { itemIds }, user?.id);
       const { error } = await supabase
         .from("donation_items")
         .update({ status: "claimed", claimed_by: user!.id, claimed_at: new Date().toISOString() })
         .in("id", itemIds);
-      if (error) throw error;
+      if (error) {
+        logger.ngo.error("Failed to claim items", error.message, { batchId, itemIds, code: error.code, details: error.details, hint: error.hint }, user?.id);
+        throw error;
+      }
+      logger.ngo.info("Successfully updated items to claimed status", { itemIds }, user?.id);
 
       // Check if all items in batch are now claimed
-      const { data: remaining } = await supabase
+      logger.ngo.debug("Checking remaining available items in batch", { batchId }, user?.id);
+      const { data: remaining, error: remainingError } = await supabase
         .from("donation_items")
         .select("id")
         .eq("batch_id", batchId)
         .eq("status", "available");
 
+      if (remainingError) {
+        logger.ngo.error("Failed to check remaining items", remainingError.message, { batchId, code: remainingError.code }, user?.id);
+      }
+
       const newBatchStatus = (remaining?.length || 0) === 0 ? "reserved" : "partially_claimed";
-      await supabase.from("donation_batches").update({ status: newBatchStatus }).eq("id", batchId);
+      logger.ngo.debug("Updating batch status", { batchId, newBatchStatus, remainingItems: remaining?.length || 0 }, user?.id);
+
+      const { error: batchError } = await supabase.from("donation_batches").update({ status: newBatchStatus }).eq("id", batchId);
+      if (batchError) {
+        logger.ngo.error("Failed to update batch status", batchError.message, { batchId, newBatchStatus, code: batchError.code }, user?.id);
+      } else {
+        logger.ngo.info("Successfully updated batch status", { batchId, newBatchStatus }, user?.id);
+      }
     },
     onSuccess: () => {
+      logger.ngo.info("Claim process completed successfully", undefined, user?.id);
       toast.success("Items claimed successfully!");
       queryClient.invalidateQueries({ queryKey: ["available_batches"] });
       queryClient.invalidateQueries({ queryKey: ["ngo_claims"] });
       setSelectedItems({});
     },
-    onError: (err: any) => toast.error(err.message),
+    onError: (err: any) => {
+      logger.ngo.error("Claim process failed", err.message, { fullError: err }, user?.id);
+      toast.error(err.message);
+    },
   });
 
   const handleClaim = (batchId: string) => {
     const itemIds = Array.from(selectedItems[batchId] || []);
-    if (itemIds.length === 0) { toast.error("Select at least one item to claim"); return; }
+    logger.ngo.info("handleClaim called", { batchId, selectedItemsCount: itemIds.length }, user?.id);
+    if (itemIds.length === 0) {
+      logger.ngo.warn("Claim attempted with no items selected", { batchId }, user?.id);
+      toast.error("Select at least one item to claim");
+      return;
+    }
     claimMutation.mutate({ batchId, itemIds });
   };
 
