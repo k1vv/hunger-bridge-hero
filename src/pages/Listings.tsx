@@ -106,7 +106,7 @@ const Listings = () => {
     setCategory("");
     setQuantity("");
     setExpiry("");
-    setLocation("");
+    setPickupLocation({ address: "", lat: null, lng: null });
     removeImage();
   };
 
