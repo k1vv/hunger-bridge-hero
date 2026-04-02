@@ -26,11 +26,30 @@ const AvailableDonations = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("donation_batches")
-        .select("*, donation_items(*), profiles:vendor_id(name, business_name, email)")
+        .select("*, donation_items(*)")
         .in("status", ["available", "partially_claimed"])
         .order("created_at", { ascending: false });
       if (error) throw error;
-      return data;
+
+      const vendorIds = Array.from(new Set((data || []).map((batch: any) => batch.vendor_id).filter(Boolean)));
+
+      if (vendorIds.length === 0) {
+        return data || [];
+      }
+
+      const { data: profiles, error: profilesError } = await supabase
+        .from("profiles")
+        .select("id, name, business_name, email")
+        .in("id", vendorIds);
+
+      if (profilesError) throw profilesError;
+
+      const profileMap = new Map((profiles || []).map((profile) => [profile.id, profile]));
+
+      return (data || []).map((batch: any) => ({
+        ...batch,
+        profiles: profileMap.get(batch.vendor_id) || null,
+      }));
     },
   });
 
