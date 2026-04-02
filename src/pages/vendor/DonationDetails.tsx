@@ -1,4 +1,4 @@
-import { useParams, Link, useNavigate } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import PageLayout from "@/components/PageLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -6,7 +6,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { Edit, Trash2, MapPin, Clock, Package, Leaf, Thermometer, FileText } from "lucide-react";
+import { Trash2, MapPin, Clock, Package, Leaf, Thermometer, Phone, User, Calendar } from "lucide-react";
+import { motion } from "framer-motion";
 
 const DonationDetails = () => {
   const { id } = useParams();
@@ -14,20 +15,14 @@ const DonationDetails = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
-  const { data: listing, isLoading } = useQuery({
-    queryKey: ["food_listing", id],
+  const { data: batch, isLoading } = useQuery({
+    queryKey: ["donation_batch", id],
     queryFn: async () => {
-      const { data, error } = await supabase.from("food_listings").select("*").eq("id", id!).single();
-      if (error) throw error;
-      return data;
-    },
-    enabled: !!id,
-  });
-
-  const { data: claims = [] } = useQuery({
-    queryKey: ["listing_claims", id],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("claims").select("*, profiles:ngo_user_id(name, email)").eq("food_listing_id", id!);
+      const { data, error } = await supabase
+        .from("donation_batches")
+        .select("*, donation_items(*)")
+        .eq("id", id!)
+        .single();
       if (error) throw error;
       return data;
     },
@@ -36,78 +31,81 @@ const DonationDetails = () => {
 
   const deleteMutation = useMutation({
     mutationFn: async () => {
-      const { error } = await supabase.from("food_listings").delete().eq("id", id!);
+      const { error } = await supabase.from("donation_batches").delete().eq("id", id!);
       if (error) throw error;
     },
     onSuccess: () => {
-      toast.success("Donation deleted");
-      queryClient.invalidateQueries({ queryKey: ["vendor_listings"] });
+      toast.success("Donation batch deleted");
+      queryClient.invalidateQueries({ queryKey: ["vendor_batches"] });
       navigate("/vendor/donations");
     },
     onError: (err: any) => toast.error(err.message),
   });
 
   if (isLoading) return <PageLayout title="Loading..."><div className="flex justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div></PageLayout>;
-  if (!listing) return <PageLayout title="Not Found"><p className="text-muted-foreground">Donation not found.</p></PageLayout>;
+  if (!batch) return <PageLayout title="Not Found"><p className="text-muted-foreground">Donation batch not found.</p></PageLayout>;
 
-  const canEdit = listing.status === "available" && listing.user_id === user?.id;
-  const canDelete = (listing.status === "available" || listing.status === "cancelled") && listing.user_id === user?.id;
+  const canDelete = batch.status === "available" && batch.vendor_id === user?.id;
+  const items = (batch as any).donation_items || [];
+
+  const spoilageColor = (risk: string) => {
+    switch (risk) {
+      case "high": case "expired": return "text-destructive bg-destructive/10";
+      case "medium": return "text-warning bg-warning/10";
+      default: return "text-success bg-success/10";
+    }
+  };
 
   return (
-    <PageLayout title={listing.title} subtitle="Donation details">
+    <PageLayout title={`Batch ${batch.batch_number}`} subtitle="Donation batch details">
       <div className="max-w-3xl space-y-6">
-        {listing.image_url && (
-          <img src={listing.image_url} alt={listing.title} className="w-full h-64 object-cover rounded-xl border border-border" />
-        )}
-
         <div className="flex items-center gap-3">
-          <Badge variant="outline" className="text-sm capitalize">{listing.status}</Badge>
-          {canEdit && <Link to={`/vendor/donations/${id}/edit`}><Button size="sm" variant="outline"><Edit className="h-4 w-4 mr-1" /> Edit</Button></Link>}
+          <Badge variant="outline" className="text-sm capitalize">{batch.status}</Badge>
+          <Badge variant="outline" className="text-sm capitalize">{batch.donation_type}</Badge>
           {canDelete && <Button size="sm" variant="destructive" onClick={() => deleteMutation.mutate()}><Trash2 className="h-4 w-4 mr-1" /> Delete</Button>}
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="rounded-xl border border-border bg-card p-5 space-y-3">
-            <h3 className="text-sm font-semibold text-foreground">Food Info</h3>
-            <div className="space-y-2 text-sm">
-              <p className="flex items-center gap-2 text-muted-foreground"><Package className="h-4 w-4" /> {listing.category} · {listing.quantity}</p>
-              <p className="flex items-center gap-2 text-muted-foreground"><Clock className="h-4 w-4" /> Expires: {listing.expiry_date}</p>
-              <p className="flex items-center gap-2 text-muted-foreground"><Leaf className="h-4 w-4" /> Halal: {listing.halal_status || "Unknown"}</p>
-              <p className="flex items-center gap-2 text-muted-foreground"><Thermometer className="h-4 w-4" /> Storage: {listing.storage_condition || "Room temp"}</p>
-            </div>
+        {/* Batch Info */}
+        <div className="rounded-xl border border-border bg-card p-5 space-y-3">
+          <h3 className="text-sm font-semibold text-foreground">Pickup Information</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+            <p className="flex items-center gap-2 text-muted-foreground"><MapPin className="h-4 w-4" /> {batch.pickup_location}</p>
+            <p className="flex items-center gap-2 text-muted-foreground"><Calendar className="h-4 w-4" /> {batch.pickup_date}</p>
+            {batch.pickup_time_start && <p className="flex items-center gap-2 text-muted-foreground"><Clock className="h-4 w-4" /> {batch.pickup_time_start} - {batch.pickup_time_end}</p>}
+            {batch.contact_person && <p className="flex items-center gap-2 text-muted-foreground"><User className="h-4 w-4" /> {batch.contact_person}</p>}
+            {batch.contact_phone && <p className="flex items-center gap-2 text-muted-foreground"><Phone className="h-4 w-4" /> {batch.contact_phone}</p>}
           </div>
-          <div className="rounded-xl border border-border bg-card p-5 space-y-3">
-            <h3 className="text-sm font-semibold text-foreground">Pickup Info</h3>
-            <div className="space-y-2 text-sm">
-              <p className="flex items-center gap-2 text-muted-foreground"><MapPin className="h-4 w-4" /> {listing.pickup_location}</p>
-              {listing.pickup_time_start && <p className="flex items-center gap-2 text-muted-foreground"><Clock className="h-4 w-4" /> {listing.pickup_time_start} - {listing.pickup_time_end}</p>}
-            </div>
-          </div>
+          {batch.notes && <p className="text-sm text-muted-foreground mt-2 italic">"{batch.notes}"</p>}
         </div>
 
-        {listing.notes_for_receiver && (
-          <div className="rounded-xl border border-border bg-card p-5">
-            <h3 className="text-sm font-semibold text-foreground flex items-center gap-2"><FileText className="h-4 w-4" /> Notes for Receiver</h3>
-            <p className="text-sm text-muted-foreground mt-2">{listing.notes_for_receiver}</p>
-          </div>
-        )}
-
-        {claims.length > 0 && (
-          <div className="rounded-xl border border-border bg-card p-5">
-            <h3 className="text-sm font-semibold text-foreground mb-3">Claims ({claims.length})</h3>
-            <div className="space-y-2">
-              {claims.map((c: any) => (
-                <div key={c.id} className="flex items-center justify-between rounded-lg border border-border p-3">
-                  <div>
-                    <p className="text-sm font-medium text-foreground">{c.profiles?.name || "NGO"}</p>
-                    <p className="text-xs text-muted-foreground">{c.profiles?.email}</p>
+        {/* Items */}
+        <div className="space-y-3">
+          <h3 className="text-sm font-semibold text-foreground">Food Items ({items.length})</h3>
+          {items.map((item: any, i: number) => (
+            <motion.div key={item.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}
+              className="rounded-xl border border-border bg-card p-4 shadow-card">
+              <div className="flex items-start gap-3">
+                {item.image_url && <img src={item.image_url} alt={item.food_name} className="h-16 w-16 rounded-lg object-cover flex-shrink-0" />}
+                <div className="flex-1">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-sm font-semibold text-foreground">{item.food_name}</h4>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline" className="text-xs capitalize">{item.status}</Badge>
+                      <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${spoilageColor(item.spoilage_risk)}`}>{item.spoilage_risk}</span>
+                    </div>
                   </div>
-                  <Badge variant="outline" className="text-xs capitalize">{c.status}</Badge>
+                  <div className="flex flex-wrap gap-3 mt-1.5 text-xs text-muted-foreground">
+                    <span className="flex items-center gap-1"><Package className="h-3 w-3" /> {item.quantity} {item.unit} · {item.category}</span>
+                    <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> Exp: {item.expiry_date}{item.expiry_time && ` ${item.expiry_time}`}</span>
+                    <span className="flex items-center gap-1"><Thermometer className="h-3 w-3" /> {item.storage_condition?.replace("_", " ")}</span>
+                    <span className="flex items-center gap-1"><Leaf className="h-3 w-3" /> {item.halal_status}</span>
+                  </div>
+                  {item.notes && <p className="text-xs text-muted-foreground mt-1 italic">{item.notes}</p>}
                 </div>
-              ))}
-            </div>
-          </div>
-        )}
+              </div>
+            </motion.div>
+          ))}
+        </div>
       </div>
     </PageLayout>
   );
