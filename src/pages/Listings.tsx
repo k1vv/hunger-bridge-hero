@@ -229,16 +229,12 @@ const Listings = () => {
                     <Input id="quantity" placeholder="e.g. 50 kg" value={quantity} onChange={(e) => setQuantity(e.target.value)} required />
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-2">
-                    <Label htmlFor="expiry">Expiry Date</Label>
-                    <Input id="expiry" type="date" value={expiry} onChange={(e) => setExpiry(e.target.value)} required />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="location">Pickup Location</Label>
-                    <Input id="location" placeholder="e.g. Main St" value={location} onChange={(e) => setLocation(e.target.value)} required />
-                  </div>
+                <div className="space-y-2">
+                  <Label htmlFor="expiry">Expiry Date</Label>
+                  <Input id="expiry" type="date" value={expiry} onChange={(e) => setExpiry(e.target.value)} required />
                 </div>
+
+                <LocationPickerMap value={pickupLocation} onChange={setPickupLocation} />
 
                 {/* Image Upload */}
                 <div className="space-y-2">
