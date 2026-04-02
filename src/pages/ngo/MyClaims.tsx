@@ -31,8 +31,26 @@ const MyClaims = () => {
         logger.ngo.error("Failed to fetch claimed items", error.message, { code: error.code }, user?.id);
         throw error;
       }
+
+      // Fetch vendor profiles separately
+      const vendorIds = Array.from(new Set((data || []).map((item: any) => item.donation_batches?.vendor_id).filter(Boolean)));
+      let profileMap = new Map();
+      if (vendorIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from("profiles")
+          .select("id, name, business_name")
+          .in("id", vendorIds);
+        profileMap = new Map((profiles || []).map((p: any) => [p.id, p]));
+      }
+
       logger.ngo.info("Successfully fetched claimed items", { count: data?.length || 0 }, user?.id);
-      return data;
+      return (data || []).map((item: any) => ({
+        ...item,
+        donation_batches: {
+          ...item.donation_batches,
+          profiles: profileMap.get(item.donation_batches?.vendor_id) || null,
+        },
+      }));
     },
     enabled: !!user,
   });
