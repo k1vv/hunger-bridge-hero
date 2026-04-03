@@ -102,7 +102,7 @@ const SignupVendor = () => {
     <div className="min-h-screen flex bg-background">
       {/* Left branding panel */}
       <div className="hidden lg:flex lg:w-1/2 flex-col items-center justify-center gap-4 bg-background px-8 -mt-[20vh]">
-        <img src={foodbridgeLogo} alt="FoodBridge" className="h-28 w-28 rounded-2xl object-contain" />
+        <img src={foodbridgeLogo} alt="FoodBridge" className="h-40 w-40 rounded-2xl object-contain" />
         <div className="flex items-center gap-2 rounded-full bg-secondary px-4 py-1.5">
           <Store className="h-4 w-4 text-secondary-foreground" />
           <span className="text-sm font-medium text-secondary-foreground">Vendor Portal</span>
@@ -114,7 +114,7 @@ const SignupVendor = () => {
 
       {/* Right form panel */}
       <div className="flex w-full lg:w-1/2 items-center justify-center px-4 py-8 overflow-y-auto">
-        <div className="w-full max-w-xl space-y-6">
+        <div className="w-full max-w-2xl space-y-6">
           {/* Mobile-only branding */}
           <div className="flex flex-col items-center gap-2 lg:hidden">
             <img src={foodbridgeLogo} alt="FoodBridge" className="h-20 w-20 rounded-xl object-contain" />
