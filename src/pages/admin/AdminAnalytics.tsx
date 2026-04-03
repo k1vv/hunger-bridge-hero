@@ -177,10 +177,10 @@ const AdminAnalytics = () => {
     <PageLayout title="Analytics" subtitle="Comprehensive platform metrics and insights">
       {/* Primary Stats */}
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6 mb-6">
-        <StatCard title="Total Donations" value={totalItems} icon={Package} variant="destructive" />
+        <StatCard title="Total Donations" value={totalItems} icon={Package} variant="primary" />
         <StatCard title="Completed" value={completedItems} icon={Truck} variant="success" />
         <StatCard title="Success Rate" value={`${claimRate}%`} icon={Recycle} variant="accent" />
-        <StatCard title="Beneficiaries" value={totalBeneficiaries} icon={HandHeart} variant="destructive" />
+        <StatCard title="Beneficiaries" value={totalBeneficiaries} icon={HandHeart} variant="primary" />
         <StatCard title="Vendors" value={vendorCount} icon={Building2} variant="default" />
         <StatCard title="NGOs" value={ngoCount} icon={Users} variant="success" />
       </div>

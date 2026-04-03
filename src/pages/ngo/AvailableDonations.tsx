@@ -335,7 +335,7 @@ const AvailableDonations = () => {
       logger.ngo.info("Fetching NGO profile for recommendations", undefined, user?.id);
       const { data, error } = await supabase
         .from("profiles")
-        .select("name, business_name, food_types, service_area, storage_capacity, address_lat, address_lng")
+        .select("name, business_name, food_types, service_area, storage_capacity")
         .eq("id", user!.id)
         .single();
 
