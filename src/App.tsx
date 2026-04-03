@@ -46,7 +46,7 @@ import Complaints from "./pages/admin/Complaints";
 import AdminAnalytics from "./pages/admin/AdminAnalytics";
 import Announcements from "./pages/admin/Announcements";
 import RulesSettings from "./pages/admin/RulesSettings";
-import AuditLogs from "./pages/admin/AuditLogs";
+
 import AdminSettings from "./pages/admin/AdminSettings";
 import UserDetail from "./pages/admin/UserDetail";
 
@@ -103,7 +103,7 @@ const App = () => (
             <Route path="/admin/analytics" element={<ProtectedRoute allowedRoles={["admin"]}><AdminAnalytics /></ProtectedRoute>} />
             <Route path="/admin/announcements" element={<ProtectedRoute allowedRoles={["admin"]}><Announcements /></ProtectedRoute>} />
             <Route path="/admin/rules" element={<ProtectedRoute allowedRoles={["admin"]}><RulesSettings /></ProtectedRoute>} />
-            <Route path="/admin/audit" element={<ProtectedRoute allowedRoles={["admin"]}><AuditLogs /></ProtectedRoute>} />
+            
             <Route path="/admin/settings" element={<ProtectedRoute allowedRoles={["admin"]}><AdminSettings /></ProtectedRoute>} />
 
             <Route path="*" element={<NotFound />} />
