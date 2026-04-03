@@ -1,5 +1,4 @@
 import PageLayout from "@/components/PageLayout";
-import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -7,6 +6,7 @@ import { toast } from "sonner";
 import { CheckCircle, XCircle, User } from "lucide-react";
 import { motion } from "framer-motion";
 import { logger } from "@/lib/logger";
+import { fetchProfilesWithRoles } from "@/lib/admin-queries";
 import { useAuth } from "@/contexts/AuthContext";
 import { notifyUserOfVerificationStatus } from "@/lib/notifications";
 
@@ -18,19 +18,21 @@ const UserVerification = () => {
     queryKey: ["pending_verification"],
     queryFn: async () => {
       logger.admin.info("Fetching pending verification users", undefined, user?.id);
-      const { data, error } = await supabase.from("profiles").select("*, user_roles(role)").eq("verification_status", "pending").order("created_at", { ascending: false });
-      if (error) {
+      try {
+        const data = await fetchProfilesWithRoles("pending");
+        logger.admin.info("Successfully fetched pending users", { count: data.length || 0 }, user?.id);
+        return data;
+      } catch (error: any) {
         logger.admin.error("Failed to fetch pending users", error.message, { code: error.code }, user?.id);
         throw error;
       }
-      logger.admin.info("Successfully fetched pending users", { count: data?.length || 0 }, user?.id);
-      return data;
     },
   });
 
   const updateStatus = useMutation({
     mutationFn: async ({ userId, status, userName }: { userId: string; status: string; userName?: string }) => {
       logger.admin.info("Updating user verification status", { targetUserId: userId, newStatus: status }, user?.id);
+      const { supabase } = await import("@/integrations/supabase/client");
       const { error } = await supabase.from("profiles").update({ verification_status: status }).eq("id", userId);
       if (error) {
         logger.admin.error("Failed to update verification status", error.message, { targetUserId: userId, newStatus: status, code: error.code }, user?.id);

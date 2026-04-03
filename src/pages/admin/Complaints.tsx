@@ -1,6 +1,5 @@
 import { useState } from "react";
 import PageLayout from "@/components/PageLayout";
-import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -9,7 +8,9 @@ import { toast } from "sonner";
 import { AlertCircle } from "lucide-react";
 import { motion } from "framer-motion";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { fetchComplaintsWithReporter } from "@/lib/admin-queries";
 import { notifyUserOfComplaintResolution } from "@/lib/notifications";
+import { supabase } from "@/integrations/supabase/client";
 
 const Complaints = () => {
   const queryClient = useQueryClient();
@@ -18,11 +19,7 @@ const Complaints = () => {
 
   const { data: complaints = [] } = useQuery({
     queryKey: ["admin_complaints"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("complaints").select("*, reporter:reporter_id(name, email)").order("created_at", { ascending: false });
-      if (error) throw error;
-      return data;
-    },
+    queryFn: fetchComplaintsWithReporter,
   });
 
   const resolveMutation = useMutation({
