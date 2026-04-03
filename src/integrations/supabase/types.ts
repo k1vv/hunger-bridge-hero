@@ -508,6 +508,8 @@ export type Database = {
       profiles: {
         Row: {
           address: string | null
+          address_lat: number | null
+          address_lng: number | null
           business_name: string | null
           created_at: string
           email: string | null
@@ -523,6 +525,8 @@ export type Database = {
         }
         Insert: {
           address?: string | null
+          address_lat?: number | null
+          address_lng?: number | null
           business_name?: string | null
           created_at?: string
           email?: string | null
@@ -538,6 +542,8 @@ export type Database = {
         }
         Update: {
           address?: string | null
+          address_lat?: number | null
+          address_lng?: number | null
           business_name?: string | null
           created_at?: string
           email?: string | null
