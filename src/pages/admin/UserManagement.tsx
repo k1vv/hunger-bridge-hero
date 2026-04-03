@@ -226,52 +226,32 @@ const UserManagement = () => {
                     {new Date(u.created_at).toLocaleDateString()}
                   </TableCell>
                   <TableCell className="text-right">
-                    {u.verification_status === "pending" && (
-                      <div className="flex items-center justify-end gap-1">
+                    <div className="flex items-center justify-end gap-1">
+                      {u.verification_status !== "verified" && (
                         <Button
                           size="sm"
                           variant="outline"
-                          className="h-7 px-2 text-success border-success/50 hover:bg-success hover:text-success-foreground"
+                          className="h-7 px-2 text-xs bg-success/10 text-success border-success/30 hover:bg-success hover:text-success-foreground"
                           onClick={() => updateStatus.mutate({ userId: u.id, status: "verified", userName: u.name || u.business_name })}
                           disabled={updateStatus.isPending}
                         >
                           <CheckCircle className="h-3.5 w-3.5 mr-1" />
                           Approve
                         </Button>
+                      )}
+                      {u.verification_status !== "rejected" && (
                         <Button
                           size="sm"
                           variant="outline"
-                          className="h-7 px-2 text-destructive border-destructive/50 hover:bg-destructive hover:text-destructive-foreground"
+                          className="h-7 px-2 text-xs bg-destructive/10 text-destructive border-destructive/30 hover:bg-destructive hover:text-destructive-foreground"
                           onClick={() => updateStatus.mutate({ userId: u.id, status: "rejected", userName: u.name || u.business_name })}
                           disabled={updateStatus.isPending}
                         >
                           <XCircle className="h-3.5 w-3.5 mr-1" />
-                          Reject
+                          Revoke
                         </Button>
-                      </div>
-                    )}
-                    {u.verification_status === "verified" && (
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="h-7 px-2 text-xs text-muted-foreground hover:text-destructive"
-                        onClick={() => updateStatus.mutate({ userId: u.id, status: "rejected", userName: u.name || u.business_name })}
-                        disabled={updateStatus.isPending}
-                      >
-                        Revoke
-                      </Button>
-                    )}
-                    {u.verification_status === "rejected" && (
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="h-7 px-2 text-xs text-muted-foreground hover:text-success"
-                        onClick={() => updateStatus.mutate({ userId: u.id, status: "verified", userName: u.name || u.business_name })}
-                        disabled={updateStatus.isPending}
-                      >
-                        Approve
-                      </Button>
-                    )}
+                      )}
+                    </div>
                   </TableCell>
                 </TableRow>
               ))
