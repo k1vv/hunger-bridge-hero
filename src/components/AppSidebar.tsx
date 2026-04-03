@@ -55,7 +55,6 @@ const adminNav: NavItem[] = [
   { label: "Announcements", icon: Megaphone, path: "/admin/announcements" },
   { label: "Rules & Settings", icon: BookOpen, path: "/admin/rules" },
   { label: "Settings", icon: Settings, path: "/admin/settings" },
-  { label: "Settings", icon: Settings, path: "/admin/settings" },
 ];
 
 // Role-specific theme class mappings (Tailwind requires static class names)
