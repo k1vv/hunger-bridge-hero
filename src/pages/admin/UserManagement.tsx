@@ -227,7 +227,7 @@ const UserManagement = () => {
                   <TableCell className="text-xs text-muted-foreground">
                     {new Date(u.created_at).toLocaleDateString()}
                   </TableCell>
-                  <TableCell className="text-right">
+                  <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                     <div className="flex items-center justify-end gap-1">
                       {u.verification_status !== "verified" && (
                         <Button
