@@ -54,7 +54,7 @@ const adminNav: NavItem[] = [
   { label: "Analytics", icon: BarChart3, path: "/admin/analytics" },
   { label: "Announcements", icon: Megaphone, path: "/admin/announcements" },
   { label: "Rules & Settings", icon: BookOpen, path: "/admin/rules" },
-  { label: "Audit Logs", icon: FileText, path: "/admin/audit" },
+  { label: "Settings", icon: Settings, path: "/admin/settings" },
   { label: "Settings", icon: Settings, path: "/admin/settings" },
 ];
 
