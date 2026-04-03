@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import PageLayout from "@/components/PageLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -8,12 +8,232 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Search, MapPin, Clock, Package, Leaf, Thermometer, Star } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Search, MapPin, Clock, Package, Leaf, Thermometer, Star, Info } from "lucide-react";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import { logger } from "@/lib/logger";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { notifyVendorOfClaim } from "@/lib/notifications";
+
+// ============================================================================
+// SMART RECOMMENDATION ALGORITHM
+// ============================================================================
+
+interface NGOProfileData {
+  food_types: string[] | null;
+  service_area: string | null;
+  storage_capacity: string | null;
+}
+
+interface ExtendedNGOProfile {
+  foodTypes: string[];
+  storageRoomTemp: boolean;
+  storageRefrigerator: boolean;
+  storageFreezer: boolean;
+  canHandleCooked: boolean;
+  hasTransport: boolean;
+  pickupRadius: number;
+  canUrgentPickup: boolean;
+  priorityNeeds: string[];
+}
+
+interface ScoreBreakdown {
+  total: number;
+  foodMatch: number;
+  urgency: number;
+  storage: number;
+  priority: number;
+  freshness: number;
+}
+
+// Parse extended profile data from storage_capacity JSON
+const parseExtendedProfile = (profile: NGOProfileData | null): ExtendedNGOProfile => {
+  const defaults: ExtendedNGOProfile = {
+    foodTypes: [],
+    storageRoomTemp: true,
+    storageRefrigerator: false,
+    storageFreezer: false,
+    canHandleCooked: true,
+    hasTransport: false,
+    pickupRadius: 10,
+    canUrgentPickup: false,
+    priorityNeeds: [],
+  };
+
+  if (!profile) return defaults;
+
+  // Get food types from profile
+  defaults.foodTypes = profile.food_types || [];
+
+  // Parse extended data from storage_capacity JSON
+  if (profile.storage_capacity) {
+    try {
+      const parsed = JSON.parse(profile.storage_capacity);
+      if (typeof parsed === "object" && parsed !== null) {
+        return {
+          foodTypes: profile.food_types || [],
+          storageRoomTemp: parsed.storage_room_temp ?? true,
+          storageRefrigerator: parsed.storage_refrigerator ?? false,
+          storageFreezer: parsed.storage_freezer ?? false,
+          canHandleCooked: parsed.can_handle_cooked ?? true,
+          hasTransport: parsed.has_transport ?? false,
+          pickupRadius: parseFloat(parsed.pickup_radius) || 10,
+          canUrgentPickup: parsed.can_urgent_pickup ?? false,
+          priorityNeeds: parsed.priority_needs || [],
+        };
+      }
+    } catch {
+      // Not JSON, use defaults
+    }
+  }
+
+  return defaults;
+};
+
+// Map donation item categories to NGO food type preferences
+const categoryToFoodType: Record<string, string[]> = {
+  "Vegetables": ["Vegetables"],
+  "Fruits": ["Fruits"],
+  "Bakery": ["Bakery"],
+  "Dairy": ["Dairy"],
+  "Grains": ["Grains"],
+  "Canned": ["Canned Food"],
+  "Frozen": ["Frozen Food"],
+  "Cooked": ["Cooked Meals"],
+  "Beverage": ["Beverages"],
+  "Ready-to-eat": ["Ready-to-eat"],
+  "Other": ["Packaged Food"],
+};
+
+// Map storage conditions to required storage types
+const storageRequirements: Record<string, "room" | "refrigerator" | "freezer"> = {
+  "room_temperature": "room",
+  "chilled": "refrigerator",
+  "frozen": "freezer",
+};
+
+// Calculate recommendation score for a batch
+const calculateRecommendationScore = (
+  batch: any,
+  ngoProfile: ExtendedNGOProfile
+): ScoreBreakdown => {
+  const items = (batch.donation_items || []).filter((i: any) => i.status === "available");
+  if (items.length === 0) return { total: 0, foodMatch: 0, urgency: 0, storage: 0, priority: 0, freshness: 0 };
+
+  let foodMatchScore = 0;
+  let urgencyScore = 0;
+  let storageScore = 0;
+  let priorityScore = 0;
+  let freshnessScore = 0;
+
+  // ============================================================================
+  // 1. FOOD PREFERENCE MATCHING (0-30 points)
+  // ============================================================================
+  if (ngoProfile.foodTypes.length === 0) {
+    // No preferences = accepts all, give base score
+    foodMatchScore = 20;
+  } else {
+    let matchingItems = 0;
+    for (const item of items) {
+      const itemCategory = item.category || "Other";
+      const mappedTypes = categoryToFoodType[itemCategory] || ["Packaged Food"];
+      const hasMatch = mappedTypes.some(type =>
+        ngoProfile.foodTypes.some(pref =>
+          pref.toLowerCase() === type.toLowerCase()
+        )
+      );
+      if (hasMatch) matchingItems++;
+    }
+    const matchRatio = matchingItems / items.length;
+    foodMatchScore = Math.round(matchRatio * 30);
+  }
+
+  // ============================================================================
+  // 2. URGENCY SCORE (0-25 points)
+  // ============================================================================
+  const highRiskCount = items.filter((i: any) => i.spoilage_risk === "high").length;
+  const mediumRiskCount = items.filter((i: any) => i.spoilage_risk === "medium").length;
+
+  // More weight for high-risk items
+  urgencyScore = Math.min(25, highRiskCount * 10 + mediumRiskCount * 3);
+
+  // Bonus if NGO can handle urgent pickups and there are urgent items
+  if (ngoProfile.canUrgentPickup && highRiskCount > 0) {
+    urgencyScore = Math.min(25, urgencyScore + 5);
+  }
+
+  // ============================================================================
+  // 3. STORAGE COMPATIBILITY (0-20 points)
+  // ============================================================================
+  let compatibleItems = 0;
+  for (const item of items) {
+    const required = storageRequirements[item.storage_condition] || "room";
+    let canStore = false;
+
+    if (required === "room" && ngoProfile.storageRoomTemp) canStore = true;
+    if (required === "refrigerator" && ngoProfile.storageRefrigerator) canStore = true;
+    if (required === "freezer" && ngoProfile.storageFreezer) canStore = true;
+
+    // Check if it's cooked food and NGO can handle it
+    if (item.category === "Cooked" && !ngoProfile.canHandleCooked) canStore = false;
+
+    if (canStore) compatibleItems++;
+  }
+  const storageRatio = compatibleItems / items.length;
+  storageScore = Math.round(storageRatio * 20);
+
+  // ============================================================================
+  // 4. PRIORITY NEEDS (0-15 points)
+  // ============================================================================
+  if (ngoProfile.priorityNeeds.length > 0) {
+    let priorityMatches = 0;
+    for (const item of items) {
+      const itemCategory = item.category || "Other";
+      const mappedTypes = categoryToFoodType[itemCategory] || [];
+      const isPriority = mappedTypes.some(type =>
+        ngoProfile.priorityNeeds.some(need =>
+          need.toLowerCase() === type.toLowerCase()
+        )
+      );
+      if (isPriority) priorityMatches++;
+    }
+    const priorityRatio = priorityMatches / items.length;
+    priorityScore = Math.round(priorityRatio * 15);
+  }
+
+  // ============================================================================
+  // 5. FRESHNESS SCORE (0-10 points)
+  // ============================================================================
+  // Based on how soon the pickup date is (earlier = fresher = better for urgent items)
+  const pickupDate = new Date(batch.pickup_date);
+  const today = new Date();
+  const daysUntilPickup = Math.max(0, Math.floor((pickupDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)));
+
+  if (daysUntilPickup === 0) {
+    freshnessScore = 10; // Today's pickup
+  } else if (daysUntilPickup === 1) {
+    freshnessScore = 8;
+  } else if (daysUntilPickup <= 3) {
+    freshnessScore = 5;
+  } else {
+    freshnessScore = 2;
+  }
+
+  // ============================================================================
+  // TOTAL SCORE (0-100)
+  // ============================================================================
+  const total = Math.min(100, foodMatchScore + urgencyScore + storageScore + priorityScore + freshnessScore);
+
+  return {
+    total,
+    foodMatch: foodMatchScore,
+    urgency: urgencyScore,
+    storage: storageScore,
+    priority: priorityScore,
+    freshness: freshnessScore,
+  };
+};
 
 const AvailableDonations = () => {
   const { user } = useAuth();
@@ -24,19 +244,35 @@ const AvailableDonations = () => {
   const [selectedItems, setSelectedItems] = useState<Record<string, Set<string>>>({});
   const [expandedBatch, setExpandedBatch] = useState<string | null>(null);
 
-  // Recommended donations query (max 10, sorted by urgency)
-  const { data: recommended = [] } = useQuery({
-    queryKey: ["recommended_batches"],
+  // Fetch NGO profile for notifications AND recommendations (MUST be before useMemo that uses it)
+  const { data: ngoProfile } = useQuery({
+    queryKey: ["ngo_profile_full", user?.id],
     queryFn: async () => {
-      logger.ngo.info("Fetching recommended donations", undefined, user?.id);
+      const { data } = await supabase
+        .from("profiles")
+        .select("name, business_name, food_types, service_area, storage_capacity")
+        .eq("id", user!.id)
+        .single();
+      return data;
+    },
+    enabled: !!user,
+  });
+
+  // Parse extended NGO profile for recommendation algorithm
+  const extendedNgoProfile = useMemo(() => parseExtendedProfile(ngoProfile), [ngoProfile]);
+
+  // Recommended donations query - fetch all available, score client-side
+  const { data: allAvailableBatches = [] } = useQuery({
+    queryKey: ["all_available_batches"],
+    queryFn: async () => {
+      logger.ngo.info("Fetching all available donations for recommendations", undefined, user?.id);
       const { data, error } = await supabase
         .from("donation_batches")
         .select("*, donation_items(*)")
         .in("status", ["available", "partially_claimed"])
-        .order("pickup_date", { ascending: true })
-        .limit(10);
+        .order("pickup_date", { ascending: true });
       if (error) {
-        logger.ngo.error("Failed to fetch recommended donations", error.message, { code: error.code }, user?.id);
+        logger.ngo.error("Failed to fetch donations", error.message, { code: error.code }, user?.id);
         throw error;
       }
       const vendorIds = [...new Set((data || []).map((b: any) => b.vendor_id))];
@@ -48,39 +284,40 @@ const AvailableDonations = () => {
           .in("id", vendorIds);
         (profiles || []).forEach((p: any) => { vendorMap[p.id] = p; });
       }
-      const enriched = (data || []).map((b: any) => ({ ...b, profiles: vendorMap[b.vendor_id] || null }));
-      return enriched;
+      return (data || []).map((b: any) => ({ ...b, profiles: vendorMap[b.vendor_id] || null }));
     },
   });
 
-  // Available donations query
-  const { data: batches = [] } = useQuery({
-    queryKey: ["available_batches"],
-    queryFn: async () => {
-      logger.ngo.info("Fetching available donation batches", undefined, user?.id);
-      const { data, error } = await supabase
-        .from("donation_batches")
-        .select("*, donation_items(*)")
-        .in("status", ["available", "partially_claimed"])
-        .order("created_at", { ascending: false });
-      if (error) {
-        logger.ngo.error("Failed to fetch donation batches", error.message, { code: error.code }, user?.id);
-        throw error;
-      }
-      const vendorIds = Array.from(new Set((data || []).map((batch: any) => batch.vendor_id).filter(Boolean)));
-      if (vendorIds.length === 0) return data || [];
-      const { data: profiles, error: profilesError } = await supabase
-        .from("profiles")
-        .select("id, name, business_name, email")
-        .in("id", vendorIds);
-      if (profilesError) throw profilesError;
-      const profileMap = new Map((profiles || []).map((profile) => [profile.id, profile]));
-      return (data || []).map((batch: any) => ({
-        ...batch,
-        profiles: profileMap.get(batch.vendor_id) || null,
-      }));
-    },
-  });
+  // Smart recommendations - score and sort batches based on NGO profile
+  const recommended = useMemo(() => {
+    if (!allAvailableBatches.length) return [];
+
+    // Calculate scores for each batch
+    const scoredBatches = allAvailableBatches
+      .map((batch: any) => {
+        const items = (batch.donation_items || []).filter((i: any) => i.status === "available");
+        if (items.length === 0) return null;
+
+        const scoreBreakdown = calculateRecommendationScore(batch, extendedNgoProfile);
+        return {
+          ...batch,
+          scoreBreakdown,
+          matchScore: scoreBreakdown.total,
+        };
+      })
+      .filter(Boolean)
+      .sort((a: any, b: any) => b.matchScore - a.matchScore) // Sort by score descending
+      .slice(0, 10); // Top 10 recommendations
+
+    return scoredBatches;
+  }, [allAvailableBatches, extendedNgoProfile]);
+
+  // Available donations - reuse the same data, sorted by created_at
+  const batches = useMemo(() => {
+    return [...allAvailableBatches].sort((a: any, b: any) =>
+      new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    );
+  }, [allAvailableBatches]);
 
   const filtered = batches.filter((b: any) => {
     const items = b.donation_items || [];
@@ -110,16 +347,6 @@ const AvailableDonations = () => {
     }));
   };
 
-  // Fetch NGO profile for notifications
-  const { data: ngoProfile } = useQuery({
-    queryKey: ["ngo_profile", user?.id],
-    queryFn: async () => {
-      const { data } = await supabase.from("profiles").select("name, business_name").eq("id", user!.id).single();
-      return data;
-    },
-    enabled: !!user,
-  });
-
   const claimMutation = useMutation({
     mutationFn: async ({ batchId, itemIds, batch }: { batchId: string; itemIds: string[]; batch: any }) => {
       const { error } = await supabase
@@ -147,8 +374,7 @@ const AvailableDonations = () => {
     },
     onSuccess: () => {
       toast.success("Items claimed successfully!");
-      queryClient.invalidateQueries({ queryKey: ["available_batches"] });
-      queryClient.invalidateQueries({ queryKey: ["recommended_batches"] });
+      queryClient.invalidateQueries({ queryKey: ["all_available_batches"] });
       queryClient.invalidateQueries({ queryKey: ["ngo_claims"] });
       setSelectedItems({});
     },
@@ -175,8 +401,7 @@ const AvailableDonations = () => {
     },
     onSuccess: () => {
       toast.success("All items claimed!");
-      queryClient.invalidateQueries({ queryKey: ["available_batches"] });
-      queryClient.invalidateQueries({ queryKey: ["recommended_batches"] });
+      queryClient.invalidateQueries({ queryKey: ["all_available_batches"] });
     },
     onError: (err: any) => {
       toast.error(err.message);
@@ -202,58 +427,144 @@ const AvailableDonations = () => {
 
   return (
     <PageLayout title="Donations" subtitle="Recommended and available donations for your organization">
-      {/* Recommended Donations — horizontal scroll */}
+      {/* Recommended Donations — only show if NGO has set food preferences */}
       <div className="mb-8">
-        <h2 className="text-sm font-semibold text-foreground mb-3">Recommended Donations</h2>
-        <ScrollArea className="w-full whitespace-nowrap">
-          <div className="flex gap-4 pb-4">
-            {recommended.map((batch: any, i: number) => {
-              const items = (batch.donation_items || []).filter((it: any) => it.status === "available");
-              if (items.length === 0) return null;
-              const urgentCount = items.filter((it: any) => it.spoilage_risk === "high").length;
-              const score = Math.min(100, 60 + urgentCount * 15);
+        <div className="flex items-center gap-2 mb-3">
+          <h2 className="text-sm font-semibold text-foreground">Recommended For You</h2>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger>
+                <Info className="h-4 w-4 text-muted-foreground" />
+              </TooltipTrigger>
+              <TooltipContent className="max-w-xs">
+                <p className="text-xs">
+                  Recommendations are based on your profile: food preferences, storage capabilities, priority needs, and urgency.
+                </p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </div>
 
-              return (
-                <motion.div key={batch.id} initial={{ opacity: 0, x: -12 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.05 }}
-                  className="inline-flex w-72 h-72 flex-shrink-0 flex-col rounded-xl border border-border bg-card shadow-card whitespace-normal">
-                  <div className="p-4 flex-1 min-h-0 overflow-y-auto">
-                    <div className="flex items-center gap-2 mb-2">
-                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 flex-shrink-0">
-                        <Star className="h-4 w-4 text-primary" />
-                      </div>
-                      <div className="min-w-0">
-                        <p className="text-xs font-bold text-primary truncate">{batch.batch_number}</p>
-                        <p className="text-xs text-muted-foreground truncate">{batch.profiles?.business_name || batch.profiles?.name}</p>
-                      </div>
-                      <span className="ml-auto text-xs font-bold text-primary flex-shrink-0">{score}%</span>
-                    </div>
-                    <div className="space-y-1 text-xs text-muted-foreground mb-3">
-                      <span className="flex items-center gap-1"><MapPin className="h-3 w-3 flex-shrink-0" /> <span className="truncate">{batch.pickup_location}</span></span>
-                      <span className="flex items-center gap-1"><Clock className="h-3 w-3 flex-shrink-0" /> {batch.pickup_date}</span>
-                      <span className="flex items-center gap-1"><Package className="h-3 w-3 flex-shrink-0" /> {items.length} items</span>
-                    </div>
-                    <div className="flex flex-wrap gap-1">
-                      {items.map((item: any) => (
-                        <span key={item.id} className={`text-xs px-2 py-0.5 rounded-full ${item.spoilage_risk === "high" ? "bg-destructive/10 text-destructive" : "bg-muted text-muted-foreground"}`}>
-                          {item.quantity} {item.unit} {item.food_name}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                  <div className="p-4 pt-0">
-                    <Button size="sm" className="w-full h-9 text-xs" onClick={() => claimAllMutation.mutate(batch)} disabled={claimAllMutation.isPending}>
-                      Claim All
-                    </Button>
-                  </div>
-                </motion.div>
-              );
-            })}
-            {recommended.length === 0 && (
-              <div className="flex items-center justify-center w-full py-8 text-sm text-muted-foreground">No recommendations available</div>
-            )}
+        {/* Check if NGO has food preferences set */}
+        {extendedNgoProfile.foodTypes.length === 0 ? (
+          <div className="rounded-xl border border-dashed border-warning/50 bg-warning/5 p-6 text-center">
+            <Star className="h-8 w-8 text-warning mx-auto mb-3" />
+            <h3 className="text-sm font-semibold text-foreground mb-1">Set Your Food Preferences</h3>
+            <p className="text-xs text-muted-foreground mb-4">
+              To get personalized donation recommendations, please update your profile with the types of food your organization accepts.
+            </p>
+            <Button size="sm" variant="outline" className="border-warning text-warning hover:bg-warning hover:text-warning-foreground" onClick={() => window.location.href = "/ngo/profile"}>
+              Update Profile
+            </Button>
           </div>
-          <ScrollBar orientation="horizontal" />
-        </ScrollArea>
+        ) : (
+          <ScrollArea className="w-full whitespace-nowrap">
+            <div className="flex gap-4 pb-4">
+              {recommended.map((batch: any, i: number) => {
+                const items = (batch.donation_items || []).filter((it: any) => it.status === "available");
+                if (items.length === 0) return null;
+                const score = batch.matchScore || 0;
+                const breakdown = batch.scoreBreakdown as ScoreBreakdown;
+
+                // Score color based on match quality
+                const scoreColor = score >= 70 ? "text-success" : score >= 40 ? "text-warning" : "text-muted-foreground";
+                const scoreBg = score >= 70 ? "bg-success/10" : score >= 40 ? "bg-warning/10" : "bg-muted";
+
+                return (
+                  <motion.div key={batch.id} initial={{ opacity: 0, x: -12 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.05 }}
+                    className={`inline-flex w-72 h-80 flex-shrink-0 flex-col rounded-xl border shadow-card whitespace-normal ${
+                      score >= 70 ? "border-success/30 bg-success/5" : score >= 40 ? "border-warning/30 bg-warning/5" : "border-border bg-card"
+                    }`}>
+                    <div className="p-4 flex-1 min-h-0 overflow-y-auto">
+                      <div className="flex items-center gap-2 mb-2">
+                        <div className={`flex h-8 w-8 items-center justify-center rounded-full flex-shrink-0 ${scoreBg}`}>
+                          <Star className={`h-4 w-4 ${scoreColor}`} />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-xs font-bold text-primary truncate">{batch.batch_number}</p>
+                          <p className="text-xs text-muted-foreground truncate">{batch.profiles?.business_name || batch.profiles?.name}</p>
+                        </div>
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span className={`text-sm font-bold flex-shrink-0 ${scoreColor}`}>{score}% Match</span>
+                            </TooltipTrigger>
+                            <TooltipContent className="w-48">
+                              <p className="text-xs font-semibold mb-2">Match Breakdown</p>
+                              <div className="space-y-1 text-xs">
+                                <div className="flex justify-between">
+                                  <span>Food Match:</span>
+                                  <span className="font-medium">{breakdown?.foodMatch || 0}/30</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span>Urgency:</span>
+                                  <span className="font-medium">{breakdown?.urgency || 0}/25</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span>Storage:</span>
+                                  <span className="font-medium">{breakdown?.storage || 0}/20</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span>Priority:</span>
+                                  <span className="font-medium">{breakdown?.priority || 0}/15</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span>Freshness:</span>
+                                  <span className="font-medium">{breakdown?.freshness || 0}/10</span>
+                                </div>
+                              </div>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      </div>
+
+                      {/* Match indicators */}
+                      <div className="flex flex-wrap gap-1 mb-2">
+                        {breakdown?.foodMatch >= 20 && (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-success/10 text-success">Food Match</span>
+                        )}
+                        {breakdown?.urgency >= 15 && (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-destructive/10 text-destructive">Urgent</span>
+                        )}
+                        {breakdown?.storage >= 15 && (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary">Storage OK</span>
+                        )}
+                        {breakdown?.priority >= 10 && (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-warning/10 text-warning">Priority Need</span>
+                        )}
+                      </div>
+
+                      <div className="space-y-1 text-xs text-muted-foreground mb-3">
+                        <span className="flex items-center gap-1"><MapPin className="h-3 w-3 flex-shrink-0" /> <span className="truncate">{batch.pickup_location}</span></span>
+                        <span className="flex items-center gap-1"><Clock className="h-3 w-3 flex-shrink-0" /> {batch.pickup_date}</span>
+                        <span className="flex items-center gap-1"><Package className="h-3 w-3 flex-shrink-0" /> {items.length} items</span>
+                      </div>
+                      <div className="flex flex-wrap gap-1">
+                        {items.slice(0, 4).map((item: any) => (
+                          <span key={item.id} className={`text-xs px-2 py-0.5 rounded-full ${item.spoilage_risk === "high" ? "bg-destructive/10 text-destructive" : "bg-muted text-muted-foreground"}`}>
+                            {item.quantity} {item.unit} {item.food_name}
+                          </span>
+                        ))}
+                        {items.length > 4 && <span className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground">+{items.length - 4} more</span>}
+                      </div>
+                    </div>
+                    <div className="p-4 pt-0">
+                      <Button size="sm" className="w-full h-9 text-xs" onClick={() => claimAllMutation.mutate(batch)} disabled={claimAllMutation.isPending}>
+                        Claim All
+                      </Button>
+                    </div>
+                  </motion.div>
+                );
+              })}
+              {recommended.length === 0 && (
+                <div className="flex items-center justify-center w-full py-8 text-sm text-muted-foreground">
+                  No matching donations found based on your preferences.
+                </div>
+              )}
+            </div>
+            <ScrollBar orientation="horizontal" />
+          </ScrollArea>
+        )}
       </div>
 
       {/* Available Donations — vertical scroll */}

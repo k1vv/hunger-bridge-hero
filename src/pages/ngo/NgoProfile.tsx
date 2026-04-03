@@ -9,7 +9,6 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
@@ -27,11 +26,12 @@ import {
   Heart,
   FileCheck,
   BarChart3,
-  CheckCircle,
   AlertCircle,
   Save,
   Snowflake,
   UtensilsCrossed,
+  Check,
+  CheckCircle,
 } from "lucide-react";
 import { logger } from "@/lib/logger";
 
@@ -472,7 +472,9 @@ const NgoProfile = () => {
                         <p className="font-medium text-sm">Room Temperature</p>
                         <p className="text-xs text-muted-foreground">Dry goods, canned food</p>
                       </div>
-                      <Checkbox checked={extendedData.storage_room_temp} className="ml-auto" />
+                      <div className={`ml-auto h-4 w-4 rounded border flex items-center justify-center ${extendedData.storage_room_temp ? "bg-primary border-primary" : "border-muted-foreground"}`}>
+                        {extendedData.storage_room_temp && <Check className="h-3 w-3 text-primary-foreground" />}
+                      </div>
                     </div>
 
                     <div
@@ -486,7 +488,9 @@ const NgoProfile = () => {
                         <p className="font-medium text-sm">Refrigerator</p>
                         <p className="text-xs text-muted-foreground">Chilled food, dairy</p>
                       </div>
-                      <Checkbox checked={extendedData.storage_refrigerator} className="ml-auto" />
+                      <div className={`ml-auto h-4 w-4 rounded border flex items-center justify-center ${extendedData.storage_refrigerator ? "bg-primary border-primary" : "border-muted-foreground"}`}>
+                        {extendedData.storage_refrigerator && <Check className="h-3 w-3 text-primary-foreground" />}
+                      </div>
                     </div>
 
                     <div
@@ -500,7 +504,9 @@ const NgoProfile = () => {
                         <p className="font-medium text-sm">Freezer</p>
                         <p className="text-xs text-muted-foreground">Frozen food, ice cream</p>
                       </div>
-                      <Checkbox checked={extendedData.storage_freezer} className="ml-auto" />
+                      <div className={`ml-auto h-4 w-4 rounded border flex items-center justify-center ${extendedData.storage_freezer ? "bg-primary border-primary" : "border-muted-foreground"}`}>
+                        {extendedData.storage_freezer && <Check className="h-3 w-3 text-primary-foreground" />}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -564,7 +570,9 @@ const NgoProfile = () => {
                         }`}
                         onClick={() => toggleArrayItem(foodTypes, type, setFoodTypes)}
                       >
-                        <Checkbox checked={foodTypes.includes(type)} />
+                        <div className={`h-4 w-4 rounded border flex items-center justify-center flex-shrink-0 ${foodTypes.includes(type) ? "bg-primary border-primary" : "border-muted-foreground"}`}>
+                          {foodTypes.includes(type) && <Check className="h-3 w-3 text-primary-foreground" />}
+                        </div>
                         <span className="text-sm">{type}</span>
                       </div>
                     ))}
@@ -601,7 +609,9 @@ const NgoProfile = () => {
                           updateExtendedData("priority_needs", newPriorities);
                         }}
                       >
-                        <Checkbox checked={extendedData.priority_needs.includes(type)} />
+                        <div className={`h-4 w-4 rounded border flex items-center justify-center flex-shrink-0 ${extendedData.priority_needs.includes(type) ? "bg-warning border-warning" : "border-muted-foreground"}`}>
+                          {extendedData.priority_needs.includes(type) && <Check className="h-3 w-3 text-warning-foreground" />}
+                        </div>
                         <span className="text-sm">{type}</span>
                       </div>
                     ))}
@@ -673,7 +683,9 @@ const NgoProfile = () => {
                           updateExtendedData("beneficiary_types", newTypes);
                         }}
                       >
-                        <Checkbox checked={extendedData.beneficiary_types.includes(type)} />
+                        <div className={`h-4 w-4 rounded border flex items-center justify-center flex-shrink-0 ${extendedData.beneficiary_types.includes(type) ? "bg-success border-success" : "border-muted-foreground"}`}>
+                          {extendedData.beneficiary_types.includes(type) && <Check className="h-3 w-3 text-success-foreground" />}
+                        </div>
                         <span className="text-sm">{type}</span>
                       </div>
                     ))}
