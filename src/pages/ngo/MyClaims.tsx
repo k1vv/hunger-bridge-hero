@@ -104,19 +104,35 @@ const MyClaims = () => {
   const cancelItemMutation = useMutation({
     mutationFn: async (item: any) => {
       logger.ngo.info("Cancelling item claim", { itemId: item.id, batchId: item.batch_id, foodName: item.food_name }, user?.id);
-      const { error } = await supabase.from("donation_items").update({ status: "available", claimed_by: null, claimed_at: null }).eq("id", item.id);
+
+      // Set status to "cancelled" but keep claimed_by so NGO can see their cancelled claims
+      const { error } = await supabase.from("donation_items").update({ status: "cancelled" }).eq("id", item.id);
       if (error) {
         logger.ngo.error("Failed to cancel item claim", error.message, { itemId: item.id, code: error.code }, user?.id);
         throw error;
       }
       logger.ngo.info("Successfully cancelled item claim", { itemId: item.id }, user?.id);
 
-      const { data: remaining } = await supabase.from("donation_items").select("id").eq("batch_id", item.batch_id).neq("status", "available");
-      if ((remaining?.length || 0) <= 1) {
-        await supabase.from("donation_batches").update({ status: "available" }).eq("id", item.batch_id);
-      } else {
-        await supabase.from("donation_batches").update({ status: "partially_claimed" }).eq("id", item.batch_id);
+      // Check remaining active items (claimed or available) to update batch status
+      const { data: activeItems } = await supabase
+        .from("donation_items")
+        .select("id, status")
+        .eq("batch_id", item.batch_id)
+        .in("status", ["available", "claimed"]);
+
+      const availableCount = (activeItems || []).filter((i: any) => i.status === "available").length;
+      const claimedCount = (activeItems || []).filter((i: any) => i.status === "claimed").length;
+
+      let newBatchStatus = "available";
+      if (claimedCount > 0 && availableCount > 0) {
+        newBatchStatus = "partially_claimed";
+      } else if (claimedCount > 0 && availableCount === 0) {
+        newBatchStatus = "reserved";
+      } else if (availableCount > 0) {
+        newBatchStatus = "available";
       }
+
+      await supabase.from("donation_batches").update({ status: newBatchStatus }).eq("id", item.batch_id);
 
       const ngoName = ngoProfile?.business_name || ngoProfile?.name || "An NGO";
       try {
@@ -292,6 +308,7 @@ const MyClaims = () => {
                     className={`flex items-center justify-between rounded-lg border p-3 ${
                       item.status === "claimed" ? "border-accent/30 bg-accent/5" :
                       item.status === "completed" ? "border-success/30 bg-success/5" :
+                      item.status === "cancelled" ? "border-muted bg-muted/30 opacity-60" :
                       "border-border"
                     }`}
                   >
@@ -310,6 +327,11 @@ const MyClaims = () => {
                             <CheckCircle className="h-3 w-3" /> Added to your inventory
                           </p>
                         )}
+                        {item.status === "cancelled" && (
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Claim cancelled
+                          </p>
+                        )}
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
@@ -318,6 +340,7 @@ const MyClaims = () => {
                         className={`text-xs capitalize ${
                           item.status === "claimed" ? "border-accent text-accent" :
                           item.status === "completed" ? "border-success text-success" :
+                          item.status === "cancelled" ? "border-muted-foreground text-muted-foreground" :
                           ""
                         }`}
                       >
