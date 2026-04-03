@@ -208,17 +208,15 @@ const MyClaims = () => {
                     <div className="p-4 border-b border-border bg-muted/10 grid gap-4 sm:grid-cols-2">
                       {/* Batch info */}
                       <div className="space-y-2">
-                        {batch?.profiles && (
-                          <div className="flex items-start gap-2">
-                            <User className="h-4 w-4 text-muted-foreground mt-0.5" />
-                            <div>
-                              <p className="text-xs text-muted-foreground">Vendor</p>
-                              <p className="text-sm text-foreground">{batch.profiles.business_name || batch.profiles.name}</p>
-                              {batch.profiles.email && <p className="text-xs text-muted-foreground">{batch.profiles.email}</p>}
-                              {batch.profiles.phone && <p className="text-xs text-muted-foreground">{batch.profiles.phone}</p>}
-                            </div>
+                        <div className="flex items-start gap-2">
+                          <User className="h-4 w-4 text-muted-foreground mt-0.5" />
+                          <div>
+                            <p className="text-xs text-muted-foreground">Vendor</p>
+                            <p className="text-sm font-medium text-foreground">{batch?.profiles?.business_name || batch?.profiles?.name || "Unknown Vendor"}</p>
+                            {batch?.profiles?.email && <p className="text-xs text-muted-foreground">{batch.profiles.email}</p>}
+                            {batch?.profiles?.phone && <p className="text-xs text-muted-foreground">{batch.profiles.phone}</p>}
                           </div>
-                        )}
+                        </div>
                         {batch?.contact_person && (
                           <div className="flex items-start gap-2">
                             <Phone className="h-4 w-4 text-muted-foreground mt-0.5" />
