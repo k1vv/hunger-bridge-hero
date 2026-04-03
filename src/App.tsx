@@ -48,6 +48,7 @@ import Announcements from "./pages/admin/Announcements";
 import RulesSettings from "./pages/admin/RulesSettings";
 import AuditLogs from "./pages/admin/AuditLogs";
 import AdminSettings from "./pages/admin/AdminSettings";
+import UserDetail from "./pages/admin/UserDetail";
 
 const queryClient = new QueryClient();
 
