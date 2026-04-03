@@ -44,7 +44,7 @@ function buildFullAddress(addr: Omit<StructuredAddress, "fullAddress" | "lat" | 
   const parts = [addr.street1, addr.street2, addr.postcode + " " + addr.city, addr.state].filter(Boolean);
   return parts.join(", ");
 }
-const AddressPickerMap = ({ value, onChange }: AddressPickerMapProps) => {
+const AddressPickerMap = ({ value, onChange, mapHeight = 192 }: AddressPickerMapProps) => {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<google.maps.Map | null>(null);
   const markerRef = useRef<google.maps.Marker | null>(null);
