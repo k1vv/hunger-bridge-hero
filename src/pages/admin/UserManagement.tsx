@@ -18,6 +18,7 @@ import { notifyUserOfVerificationStatus } from "@/lib/notifications";
 
 const UserManagement = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [roleFilter, setRoleFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
