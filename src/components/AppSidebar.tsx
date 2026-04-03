@@ -31,7 +31,6 @@ const vendorNav: NavItem[] = [
   { label: "Create Donation", icon: Plus, path: "/vendor/create" },
   { label: "My Donations", icon: ClipboardList, path: "/vendor/donations" },
   { label: "Pickups", icon: Truck, path: "/vendor/pickups" },
-  { label: "Notifications", icon: Bell, path: "/notifications" },
   { label: "Impact Report", icon: BarChart3, path: "/vendor/impact" },
   { label: "Profile", icon: User, path: "/vendor/profile" },
 ];
