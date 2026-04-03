@@ -100,7 +100,7 @@ const SignupVendor = () => {
   return (
     <div className="min-h-screen flex bg-background">
       {/* Left branding panel */}
-      <div className="hidden lg:flex lg:w-1/2 flex-col items-center justify-center gap-4 bg-primary/5 px-8">
+      <div className="hidden lg:flex lg:w-1/2 flex-col items-center justify-end gap-4 bg-background px-8 pb-[30vh]">
         <div className="flex h-16 w-16 items-center justify-center rounded-xl bg-primary">
           <Leaf className="h-8 w-8 text-primary-foreground" />
         </div>
