@@ -102,12 +102,16 @@ const PickupManagement = () => {
 
   const confirmHandover = useMutation({
     mutationFn: async (item: any) => {
+      logger.vendor.info("Confirming handover", { itemId: item.id, foodName: item.food_name }, user?.id);
+
+      // 1. Update donation item status to completed
       const { error } = await supabase
         .from("donation_items")
         .update({ status: "completed" })
         .eq("id", item.id);
       if (error) throw error;
 
+      // 2. Check if batch is fully completed
       const { data: remainingItems } = await supabase
         .from("donation_items")
         .select("id, status")
@@ -121,7 +125,36 @@ const PickupManagement = () => {
           .eq("id", item.batch.id);
       }
 
+      // 3. Auto-add item to NGO's inventory
       const vendorName = vendorProfile?.business_name || vendorProfile?.name || "A vendor";
+      const sourceInfo = JSON.stringify({
+        source_type: "donation",
+        source_name: vendorName,
+        donation_item_id: item.id,
+        batch_number: item.batch.batch_number,
+        pickup_location: item.batch.pickup_location,
+      });
+
+      const { error: inventoryError } = await supabase
+        .from("inventory")
+        .insert({
+          ngo_user_id: item.claimed_by,
+          food_title: item.food_name,
+          category: item.category || "Other",
+          quantity_received: item.quantity || "1",
+          quantity_remaining: item.quantity || "1",
+          expiry_date: item.expiry_date || null,
+          notes: sourceInfo,
+        });
+
+      if (inventoryError) {
+        logger.vendor.error("Failed to add item to NGO inventory", inventoryError.message, { itemId: item.id }, user?.id);
+        // Don't throw - pickup is still confirmed, just log the inventory error
+      } else {
+        logger.vendor.info("Item added to NGO inventory", { itemId: item.id, ngoId: item.claimed_by }, user?.id);
+      }
+
+      // 4. Notify NGO
       try {
         await notifyNgoOfPickupComplete(item.claimed_by, vendorName, item.food_name, item.id);
       } catch (e) {

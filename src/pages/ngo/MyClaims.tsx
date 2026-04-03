@@ -7,11 +7,11 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
-import { Package, MapPin, Clock } from "lucide-react";
+import { Package, MapPin, Clock, Truck, CheckCircle } from "lucide-react";
 import { logger } from "@/lib/logger";
 import { notifyVendorOfClaimCancellation } from "@/lib/notifications";
 
-const statusFilters = ["all", "claimed", "completed", "cancelled"] as const;
+const statusFilters = ["all", "pending_pickup", "completed", "cancelled"] as const;
 
 const MyClaims = () => {
   const { user } = useAuth();
@@ -79,7 +79,9 @@ const MyClaims = () => {
   const filteredGroups = Object.entries(grouped)
     .map(([batchId, group]: any) => {
       if (filter === "all") return [batchId, group];
-      const filteredItems = group.items.filter((i: any) => i.status === filter);
+      // Map "pending_pickup" filter to "claimed" status
+      const statusToFilter = filter === "pending_pickup" ? "claimed" : filter;
+      const filteredItems = group.items.filter((i: any) => i.status === statusToFilter);
       return [batchId, { ...group, items: filteredItems }];
     })
     .filter(([_, group]: any) => group.items.length > 0);
@@ -130,14 +132,41 @@ const MyClaims = () => {
     },
   });
 
+  // Calculate summary stats
+  const pendingPickups = claimedItems.filter((item: any) => item.status === "claimed").length;
+  const completedItems = claimedItems.filter((item: any) => item.status === "completed").length;
+
   return (
     <PageLayout title="My Claims" subtitle="View and manage your claimed items">
+      {/* Summary Cards */}
+      {claimedItems.length > 0 && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+          <div className="rounded-xl border border-primary/30 bg-primary/5 p-4">
+            <div className="flex items-center gap-2 text-primary mb-1">
+              <Truck className="h-4 w-4" />
+              <span className="text-xs">Pending Pickup</span>
+            </div>
+            <p className="text-2xl font-bold text-primary">{pendingPickups}</p>
+          </div>
+          <div className="rounded-xl border border-success/30 bg-success/5 p-4">
+            <div className="flex items-center gap-2 text-success mb-1">
+              <CheckCircle className="h-4 w-4" />
+              <span className="text-xs">Completed</span>
+            </div>
+            <p className="text-2xl font-bold text-success">{completedItems}</p>
+          </div>
+        </div>
+      )}
+
       <div className="flex items-center gap-2 flex-wrap mb-6">
-        {statusFilters.map((s) => (
-          <button key={s} onClick={() => setFilter(s)} className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors capitalize ${filter === s ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:text-foreground"}`}>
-            {s}
-          </button>
-        ))}
+        {statusFilters.map((s) => {
+          const label = s === "pending_pickup" ? "Pending Pickup" : s;
+          return (
+            <button key={s} onClick={() => setFilter(s)} className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors capitalize ${filter === s ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:text-foreground"}`}>
+              {label}
+            </button>
+          );
+        })}
       </div>
 
       <div className="space-y-4">
@@ -156,16 +185,42 @@ const MyClaims = () => {
             </div>
             <div className="p-4 space-y-2">
               {group.items.map((item: any) => (
-                <div key={item.id} className="flex items-center justify-between rounded-lg border border-border p-3">
+                <div
+                  key={item.id}
+                  className={`flex items-center justify-between rounded-lg border p-3 ${
+                    item.status === "claimed" ? "border-primary/30 bg-primary/5" :
+                    item.status === "completed" ? "border-success/30 bg-success/5" :
+                    "border-border"
+                  }`}
+                >
                   <div className="flex items-center gap-3">
                     {item.image_url && <img src={item.image_url} alt="" className="h-10 w-10 rounded-lg object-cover" />}
                     <div>
                       <p className="text-sm font-medium text-foreground">{item.food_name}</p>
                       <p className="text-xs text-muted-foreground">{item.quantity} {item.unit} · {item.category}</p>
+                      {item.status === "claimed" && (
+                        <p className="text-xs text-primary mt-1 flex items-center gap-1">
+                          <Truck className="h-3 w-3" /> Ready for pickup
+                        </p>
+                      )}
+                      {item.status === "completed" && (
+                        <p className="text-xs text-success mt-1 flex items-center gap-1">
+                          <CheckCircle className="h-3 w-3" /> Added to your inventory
+                        </p>
+                      )}
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Badge variant="outline" className="text-xs capitalize">{item.status}</Badge>
+                    <Badge
+                      variant="outline"
+                      className={`text-xs capitalize ${
+                        item.status === "claimed" ? "border-primary text-primary" :
+                        item.status === "completed" ? "border-success text-success" :
+                        ""
+                      }`}
+                    >
+                      {item.status === "claimed" ? "Pending Pickup" : item.status}
+                    </Badge>
                     {item.status === "claimed" && (
                       <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => cancelItemMutation.mutate(item)}>Cancel</Button>
                     )}
