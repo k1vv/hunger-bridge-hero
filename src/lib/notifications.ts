@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 export type NotificationType =
   | "claim_created"
   | "claim_cancelled"
+  | "claim_cancelled_by_vendor"
   | "pickup_completed"
   | "donation_created"
   | "verification_approved"
