@@ -335,7 +335,7 @@ const AvailableDonations = () => {
       logger.ngo.info("Fetching NGO profile for recommendations", undefined, user?.id);
       const { data, error } = await supabase
         .from("profiles")
-        .select("name, business_name, food_types, service_area, storage_capacity")
+        .select("name, business_name, food_types, service_area, storage_capacity, address_lat, address_lng")
         .eq("id", user!.id)
         .single();
 
@@ -345,7 +345,7 @@ const AvailableDonations = () => {
       }
 
       logger.ngo.info("Successfully fetched NGO profile", { hasLocation: !!data?.address_lat, hasFoodTypes: !!data?.food_types?.length }, user?.id);
-      return data;
+      return data as unknown as NGOProfileData & { name: string | null; business_name: string | null };
     },
     enabled: !!user,
   });
