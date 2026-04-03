@@ -99,7 +99,7 @@ const PickupManagement = () => {
           .in("id", ngoIds);
 
         if (profilesError) {
-          logger.vendor.warn("Failed to fetch NGO profiles", profilesError.message, { code: profilesError.code }, user?.id);
+          logger.vendor.warn("Failed to fetch NGO profiles", { message: profilesError.message, code: profilesError.code }, user?.id);
         } else {
           (profiles || []).forEach(p => { profilesMap[p.id] = p; });
         }
