@@ -305,7 +305,7 @@ const NgoProfile = () => {
                     onClick={() => setActiveSection(section.id)}
                     className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${
                       activeSection === section.id
-                        ? "bg-primary text-primary-foreground"
+                        ? "bg-accent text-accent-foreground"
                         : "text-muted-foreground hover:text-foreground hover:bg-muted"
                     }`}
                   >
@@ -329,7 +329,7 @@ const NgoProfile = () => {
                 className="rounded-xl border border-border bg-card p-6 shadow-card space-y-6"
               >
                 <div className="flex items-center gap-2 mb-4">
-                  <Building2 className="h-5 w-5 text-primary" />
+                  <Building2 className="h-5 w-5 text-accent" />
                   <h2 className="text-lg font-semibold">Basic Information</h2>
                 </div>
 
@@ -450,7 +450,7 @@ const NgoProfile = () => {
                 className="rounded-xl border border-border bg-card p-6 shadow-card space-y-6"
               >
                 <div className="flex items-center gap-2 mb-4">
-                  <Package className="h-5 w-5 text-primary" />
+                  <Package className="h-5 w-5 text-accent" />
                   <h2 className="text-lg font-semibold">Capacity & Storage</h2>
                 </div>
 
@@ -463,49 +463,49 @@ const NgoProfile = () => {
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div
                       className={`flex items-center gap-3 p-4 rounded-lg border cursor-pointer transition-colors ${
-                        extendedData.storage_room_temp ? "border-primary bg-primary/5" : "border-border"
+                        extendedData.storage_room_temp ? "border-accent bg-accent/5" : "border-border"
                       }`}
                       onClick={() => updateExtendedData("storage_room_temp", !extendedData.storage_room_temp)}
                     >
-                      <Thermometer className={`h-5 w-5 ${extendedData.storage_room_temp ? "text-primary" : "text-muted-foreground"}`} />
+                      <Thermometer className={`h-5 w-5 ${extendedData.storage_room_temp ? "text-accent" : "text-muted-foreground"}`} />
                       <div>
                         <p className="font-medium text-sm">Room Temperature</p>
                         <p className="text-xs text-muted-foreground">Dry goods, canned food</p>
                       </div>
-                      <div className={`ml-auto h-4 w-4 rounded border flex items-center justify-center ${extendedData.storage_room_temp ? "bg-primary border-primary" : "border-muted-foreground"}`}>
-                        {extendedData.storage_room_temp && <Check className="h-3 w-3 text-primary-foreground" />}
+                      <div className={`ml-auto h-4 w-4 rounded border flex items-center justify-center ${extendedData.storage_room_temp ? "bg-accent border-accent" : "border-muted-foreground"}`}>
+                        {extendedData.storage_room_temp && <Check className="h-3 w-3 text-accent-foreground" />}
                       </div>
                     </div>
 
                     <div
                       className={`flex items-center gap-3 p-4 rounded-lg border cursor-pointer transition-colors ${
-                        extendedData.storage_refrigerator ? "border-primary bg-primary/5" : "border-border"
+                        extendedData.storage_refrigerator ? "border-accent bg-accent/5" : "border-border"
                       }`}
                       onClick={() => updateExtendedData("storage_refrigerator", !extendedData.storage_refrigerator)}
                     >
-                      <Package className={`h-5 w-5 ${extendedData.storage_refrigerator ? "text-primary" : "text-muted-foreground"}`} />
+                      <Package className={`h-5 w-5 ${extendedData.storage_refrigerator ? "text-accent" : "text-muted-foreground"}`} />
                       <div>
                         <p className="font-medium text-sm">Refrigerator</p>
                         <p className="text-xs text-muted-foreground">Chilled food, dairy</p>
                       </div>
-                      <div className={`ml-auto h-4 w-4 rounded border flex items-center justify-center ${extendedData.storage_refrigerator ? "bg-primary border-primary" : "border-muted-foreground"}`}>
-                        {extendedData.storage_refrigerator && <Check className="h-3 w-3 text-primary-foreground" />}
+                      <div className={`ml-auto h-4 w-4 rounded border flex items-center justify-center ${extendedData.storage_refrigerator ? "bg-accent border-accent" : "border-muted-foreground"}`}>
+                        {extendedData.storage_refrigerator && <Check className="h-3 w-3 text-accent-foreground" />}
                       </div>
                     </div>
 
                     <div
                       className={`flex items-center gap-3 p-4 rounded-lg border cursor-pointer transition-colors ${
-                        extendedData.storage_freezer ? "border-primary bg-primary/5" : "border-border"
+                        extendedData.storage_freezer ? "border-accent bg-accent/5" : "border-border"
                       }`}
                       onClick={() => updateExtendedData("storage_freezer", !extendedData.storage_freezer)}
                     >
-                      <Snowflake className={`h-5 w-5 ${extendedData.storage_freezer ? "text-primary" : "text-muted-foreground"}`} />
+                      <Snowflake className={`h-5 w-5 ${extendedData.storage_freezer ? "text-accent" : "text-muted-foreground"}`} />
                       <div>
                         <p className="font-medium text-sm">Freezer</p>
                         <p className="text-xs text-muted-foreground">Frozen food, ice cream</p>
                       </div>
-                      <div className={`ml-auto h-4 w-4 rounded border flex items-center justify-center ${extendedData.storage_freezer ? "bg-primary border-primary" : "border-muted-foreground"}`}>
-                        {extendedData.storage_freezer && <Check className="h-3 w-3 text-primary-foreground" />}
+                      <div className={`ml-auto h-4 w-4 rounded border flex items-center justify-center ${extendedData.storage_freezer ? "bg-accent border-accent" : "border-muted-foreground"}`}>
+                        {extendedData.storage_freezer && <Check className="h-3 w-3 text-accent-foreground" />}
                       </div>
                     </div>
                   </div>
@@ -551,7 +551,7 @@ const NgoProfile = () => {
                 className="rounded-xl border border-border bg-card p-6 shadow-card space-y-6"
               >
                 <div className="flex items-center gap-2 mb-4">
-                  <UtensilsCrossed className="h-5 w-5 text-primary" />
+                  <UtensilsCrossed className="h-5 w-5 text-accent" />
                   <h2 className="text-lg font-semibold">Food Preferences & Needs</h2>
                 </div>
 
@@ -566,12 +566,12 @@ const NgoProfile = () => {
                       <div
                         key={type}
                         className={`flex items-center gap-2 p-3 rounded-lg border cursor-pointer transition-colors ${
-                          foodTypes.includes(type) ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"
+                          foodTypes.includes(type) ? "border-accent bg-accent/5" : "border-border hover:border-accent/50"
                         }`}
                         onClick={() => toggleArrayItem(foodTypes, type, setFoodTypes)}
                       >
-                        <div className={`h-4 w-4 rounded border flex items-center justify-center flex-shrink-0 ${foodTypes.includes(type) ? "bg-primary border-primary" : "border-muted-foreground"}`}>
-                          {foodTypes.includes(type) && <Check className="h-3 w-3 text-primary-foreground" />}
+                        <div className={`h-4 w-4 rounded border flex items-center justify-center flex-shrink-0 ${foodTypes.includes(type) ? "bg-accent border-accent" : "border-muted-foreground"}`}>
+                          {foodTypes.includes(type) && <Check className="h-3 w-3 text-accent-foreground" />}
                         </div>
                         <span className="text-sm">{type}</span>
                       </div>
@@ -633,7 +633,7 @@ const NgoProfile = () => {
                 className="rounded-xl border border-border bg-card p-6 shadow-card space-y-6"
               >
                 <div className="flex items-center gap-2 mb-4">
-                  <Users className="h-5 w-5 text-primary" />
+                  <Users className="h-5 w-5 text-accent" />
                   <h2 className="text-lg font-semibold">Beneficiary Information</h2>
                 </div>
 
@@ -707,7 +707,7 @@ const NgoProfile = () => {
                 className="rounded-xl border border-border bg-card p-6 shadow-card space-y-6"
               >
                 <div className="flex items-center gap-2 mb-4">
-                  <Truck className="h-5 w-5 text-primary" />
+                  <Truck className="h-5 w-5 text-accent" />
                   <h2 className="text-lg font-semibold">Logistics Capability</h2>
                 </div>
 
@@ -734,7 +734,7 @@ const NgoProfile = () => {
                     <motion.div
                       initial={{ opacity: 0, height: 0 }}
                       animate={{ opacity: 1, height: "auto" }}
-                      className="grid grid-cols-1 md:grid-cols-2 gap-4 pl-4 border-l-2 border-primary/30"
+                      className="grid grid-cols-1 md:grid-cols-2 gap-4 pl-4 border-l-2 border-accent/30"
                     >
                       <div className="space-y-2">
                         <Label>Number of Vehicles</Label>
@@ -788,7 +788,7 @@ const NgoProfile = () => {
                 className="rounded-xl border border-border bg-card p-6 shadow-card space-y-6"
               >
                 <div className="flex items-center gap-2 mb-4">
-                  <FileCheck className="h-5 w-5 text-primary" />
+                  <FileCheck className="h-5 w-5 text-accent" />
                   <h2 className="text-lg font-semibold">Verification Status</h2>
                 </div>
 
@@ -854,7 +854,7 @@ const NgoProfile = () => {
                 className="rounded-xl border border-border bg-card p-6 shadow-card space-y-6"
               >
                 <div className="flex items-center gap-2 mb-4">
-                  <BarChart3 className="h-5 w-5 text-primary" />
+                  <BarChart3 className="h-5 w-5 text-accent" />
                   <h2 className="text-lg font-semibold">System Statistics</h2>
                 </div>
 
@@ -864,7 +864,7 @@ const NgoProfile = () => {
 
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
                   <div className="rounded-xl border border-border bg-muted/30 p-4 text-center">
-                    <Package className="h-6 w-6 text-primary mx-auto mb-2" />
+                    <Package className="h-6 w-6 text-accent mx-auto mb-2" />
                     <p className="text-2xl font-bold text-foreground">{stats?.totalFoodReceived || 0}</p>
                     <p className="text-xs text-muted-foreground">Total Food Received</p>
                   </div>
@@ -876,7 +876,7 @@ const NgoProfile = () => {
                   </div>
 
                   <div className="rounded-xl border border-border bg-muted/30 p-4 text-center">
-                    <BarChart3 className="h-6 w-6 text-primary mx-auto mb-2" />
+                    <BarChart3 className="h-6 w-6 text-accent mx-auto mb-2" />
                     <p className="text-2xl font-bold text-foreground">{stats?.distributionEfficiency || 0}%</p>
                     <p className="text-xs text-muted-foreground">Distribution Efficiency</p>
                   </div>
@@ -894,7 +894,7 @@ const NgoProfile = () => {
                   </div>
                 </div>
 
-                <div className="p-4 rounded-lg border border-primary/20 bg-primary/5">
+                <div className="p-4 rounded-lg border border-accent/20 bg-accent/5">
                   <p className="text-sm text-muted-foreground">
                     <strong>Tip:</strong> Maintain a high completion rate and low cancellation rate to be prioritized for donations.
                     Respond quickly to donation notifications for better matching.

@@ -96,8 +96,8 @@ const Announcements = () => {
           <motion.div key={a.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.03 }}
             className="rounded-xl border border-border bg-card p-5 shadow-card">
             <div className="flex items-start gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-                <Megaphone className="h-5 w-5 text-primary" />
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-destructive/10">
+                <Megaphone className="h-5 w-5 text-destructive" />
               </div>
               <div className="flex-1">
                 <div className="flex items-center gap-2">

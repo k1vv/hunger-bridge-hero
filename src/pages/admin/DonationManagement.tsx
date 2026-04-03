@@ -57,7 +57,7 @@ const DonationManagement = () => {
       case "available": return "bg-success/10 text-success";
       case "partially_claimed": return "bg-info/10 text-info";
       case "reserved": return "bg-warning/10 text-warning";
-      case "completed": return "bg-primary/10 text-primary";
+      case "completed": return "bg-destructive/10 text-destructive";
       case "expired": return "bg-destructive/10 text-destructive";
       default: return "bg-muted text-muted-foreground";
     }
@@ -68,7 +68,7 @@ const DonationManagement = () => {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center mb-6">
         <div className="flex items-center gap-2 flex-wrap">
           {statusFilters.map(s => (
-            <button key={s} onClick={() => setFilter(s)} className={`rounded-lg px-3 py-1.5 text-xs font-medium capitalize transition-colors ${filter === s ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}>
+            <button key={s} onClick={() => setFilter(s)} className={`rounded-lg px-3 py-1.5 text-xs font-medium capitalize transition-colors ${filter === s ? "bg-destructive text-destructive-foreground" : "bg-muted text-muted-foreground"}`}>
               {s === "partially_claimed" ? "Partial" : s}
             </button>
           ))}
@@ -88,7 +88,7 @@ const DonationManagement = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold text-primary">{batch.batch_number}</span>
+                    <span className="text-xs font-bold text-destructive">{batch.batch_number}</span>
                     <span className="text-sm text-foreground">{batch.profiles?.business_name || batch.profiles?.name}</span>
                     <Badge variant="outline" className={`text-xs capitalize ${statusColor(batch.status)}`}>{batch.status}</Badge>
                   </div>

@@ -35,7 +35,7 @@ const UserManagement = () => {
     <PageLayout title="User Management" subtitle="Manage all platform users">
       <div className="flex items-center gap-2 mb-6">
         {["all", "vendor", "ngo", "admin"].map(r => (
-          <button key={r} onClick={() => setRoleFilter(r)} className={`rounded-lg px-3 py-1.5 text-xs font-medium capitalize transition-colors ${roleFilter === r ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}>
+          <button key={r} onClick={() => setRoleFilter(r)} className={`rounded-lg px-3 py-1.5 text-xs font-medium capitalize transition-colors ${roleFilter === r ? "bg-destructive text-destructive-foreground" : "bg-muted text-muted-foreground"}`}>
             {r}
           </button>
         ))}

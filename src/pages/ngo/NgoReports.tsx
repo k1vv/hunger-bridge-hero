@@ -51,7 +51,7 @@ const NgoReports = () => {
   return (
     <PageLayout title="Reports" subtitle="Your food collection and distribution impact">
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-8">
-        <StatCard title="Total Claims" value={claims.length} icon={Package} variant="primary" />
+        <StatCard title="Total Claims" value={claims.length} icon={Package} variant="accent" />
         <StatCard title="Completed" value={completedClaims.length} icon={CheckCircle} variant="success" />
         <StatCard title="Food Received" value={`${totalReceived} kg`} icon={TrendingUp} variant="accent" />
         <StatCard title="Distributed" value={`${totalDistributed} kg`} icon={HandHeart} variant="default" />
@@ -66,7 +66,7 @@ const NgoReports = () => {
               <XAxis dataKey="month" tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }} />
               <YAxis tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }} />
               <Tooltip contentStyle={{ backgroundColor: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: "8px", fontSize: "12px" }} />
-              <Bar dataKey="claims" fill="hsl(var(--primary))" name="Total Claims" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="claims" fill="hsl(var(--accent))" name="Total Claims" radius={[4, 4, 0, 0]} />
               <Bar dataKey="completed" fill="hsl(var(--success))" name="Completed" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>

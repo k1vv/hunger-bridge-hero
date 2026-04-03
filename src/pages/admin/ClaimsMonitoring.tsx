@@ -143,7 +143,7 @@ const ClaimsMonitoring = () => {
               key={s}
               onClick={() => setFilter(s)}
               className={`rounded-lg px-3 py-1.5 text-xs font-medium capitalize transition-colors ${
-                filter === s ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:text-foreground"
+                filter === s ? "bg-destructive text-destructive-foreground" : "bg-muted text-muted-foreground hover:text-foreground"
               }`}
             >
               {s}
@@ -200,7 +200,7 @@ const ClaimsMonitoring = () => {
                     </div>
                   </TableCell>
                   <TableCell>
-                    <span className="text-xs font-medium text-primary">
+                    <span className="text-xs font-medium text-destructive">
                       {claim.donation_batches?.batch_number || "-"}
                     </span>
                   </TableCell>

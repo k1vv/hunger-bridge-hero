@@ -141,12 +141,12 @@ const MyClaims = () => {
       {/* Summary Cards */}
       {claimedItems.length > 0 && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-          <div className="rounded-xl border border-primary/30 bg-primary/5 p-4">
-            <div className="flex items-center gap-2 text-primary mb-1">
+          <div className="rounded-xl border border-accent/30 bg-accent/5 p-4">
+            <div className="flex items-center gap-2 text-accent mb-1">
               <Truck className="h-4 w-4" />
               <span className="text-xs">Pending Pickup</span>
             </div>
-            <p className="text-2xl font-bold text-primary">{pendingPickups}</p>
+            <p className="text-2xl font-bold text-accent">{pendingPickups}</p>
           </div>
           <div className="rounded-xl border border-success/30 bg-success/5 p-4">
             <div className="flex items-center gap-2 text-success mb-1">
@@ -162,7 +162,7 @@ const MyClaims = () => {
         {statusFilters.map((s) => {
           const label = s === "pending_pickup" ? "Pending Pickup" : s;
           return (
-            <button key={s} onClick={() => setFilter(s)} className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors capitalize ${filter === s ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:text-foreground"}`}>
+            <button key={s} onClick={() => setFilter(s)} className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors capitalize ${filter === s ? "bg-accent text-accent-foreground" : "bg-muted text-muted-foreground hover:text-foreground"}`}>
               {label}
             </button>
           );
@@ -175,7 +175,7 @@ const MyClaims = () => {
             className="rounded-xl border border-border bg-card shadow-card overflow-hidden">
             <div className="p-4 border-b border-border bg-muted/30">
               <div className="flex items-center gap-2">
-                <span className="text-xs font-bold text-primary">{group.batch?.batch_number}</span>
+                <span className="text-xs font-bold text-accent">{group.batch?.batch_number}</span>
                 <span className="text-sm text-foreground">{group.batch?.profiles?.business_name || group.batch?.profiles?.name}</span>
               </div>
               <div className="flex gap-3 mt-1 text-xs text-muted-foreground">
@@ -188,7 +188,7 @@ const MyClaims = () => {
                 <div
                   key={item.id}
                   className={`flex items-center justify-between rounded-lg border p-3 ${
-                    item.status === "claimed" ? "border-primary/30 bg-primary/5" :
+                    item.status === "claimed" ? "border-accent/30 bg-accent/5" :
                     item.status === "completed" ? "border-success/30 bg-success/5" :
                     "border-border"
                   }`}
@@ -199,7 +199,7 @@ const MyClaims = () => {
                       <p className="text-sm font-medium text-foreground">{item.food_name}</p>
                       <p className="text-xs text-muted-foreground">{item.quantity} {item.unit} · {item.category}</p>
                       {item.status === "claimed" && (
-                        <p className="text-xs text-primary mt-1 flex items-center gap-1">
+                        <p className="text-xs text-accent mt-1 flex items-center gap-1">
                           <Truck className="h-3 w-3" /> Ready for pickup
                         </p>
                       )}
@@ -214,7 +214,7 @@ const MyClaims = () => {
                     <Badge
                       variant="outline"
                       className={`text-xs capitalize ${
-                        item.status === "claimed" ? "border-primary text-primary" :
+                        item.status === "claimed" ? "border-accent text-accent" :
                         item.status === "completed" ? "border-success text-success" :
                         ""
                       }`}

@@ -481,7 +481,7 @@ const AvailableDonations = () => {
                           <Star className={`h-4 w-4 ${scoreColor}`} />
                         </div>
                         <div className="min-w-0 flex-1">
-                          <p className="text-xs font-bold text-primary truncate">{batch.batch_number}</p>
+                          <p className="text-xs font-bold text-accent truncate">{batch.batch_number}</p>
                           <p className="text-xs text-muted-foreground truncate">{batch.profiles?.business_name || batch.profiles?.name}</p>
                         </div>
                         <TooltipProvider>
@@ -607,7 +607,7 @@ const AvailableDonations = () => {
                   <div className="flex items-start justify-between">
                     <div>
                       <div className="flex items-center gap-2">
-                        <span className="text-sm font-bold text-primary">{batch.batch_number}</span>
+                        <span className="text-sm font-bold text-accent">{batch.batch_number}</span>
                         <span className="text-sm font-medium text-foreground">— {batch.profiles?.business_name || batch.profiles?.name || "Donor"}</span>
                       </div>
                       <div className="flex flex-wrap gap-3 mt-1.5 text-xs text-muted-foreground">
@@ -642,7 +642,7 @@ const AvailableDonations = () => {
                         </div>
 
                         {items.map((item: any) => (
-                          <div key={item.id} className={`rounded-lg border p-3 transition-colors ${selected.has(item.id) ? "border-primary bg-primary/5" : "border-border"}`}>
+                          <div key={item.id} className={`rounded-lg border p-3 transition-colors ${selected.has(item.id) ? "border-accent bg-accent/5" : "border-border"}`}>
                             <div className="flex items-start gap-3">
                               <Checkbox checked={selected.has(item.id)} onCheckedChange={() => toggleItem(batch.id, item.id)} className="mt-0.5" />
                               {item.image_url && <img src={item.image_url} alt={item.food_name} className="h-12 w-12 rounded-lg object-cover flex-shrink-0" />}
