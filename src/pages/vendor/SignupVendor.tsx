@@ -117,9 +117,7 @@ const SignupVendor = () => {
         <div className="w-full max-w-xl space-y-6">
           {/* Mobile-only branding */}
           <div className="flex flex-col items-center gap-2 lg:hidden">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary">
-              <Leaf className="h-6 w-6 text-primary-foreground" />
-            </div>
+            <img src={foodbridgeLogo} alt="FoodBridge" className="h-20 w-20 rounded-xl object-contain" />
             <div className="flex items-center gap-2 rounded-full bg-secondary px-3 py-1">
               <Store className="h-4 w-4 text-secondary-foreground" />
               <span className="text-sm font-medium text-secondary-foreground">Vendor Portal</span>
