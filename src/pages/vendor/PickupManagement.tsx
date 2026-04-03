@@ -256,6 +256,17 @@ const PickupManagement = () => {
             </div>
 
             <div className="p-4 space-y-3">
+              {group.items.length > 1 && (
+                <div className="flex justify-end">
+                  <Button
+                    size="sm"
+                    onClick={() => group.items.forEach((item: any) => confirmHandover.mutate(item))}
+                    disabled={confirmHandover.isPending}
+                  >
+                    <CheckCircle2 className="h-4 w-4 mr-1" /> Confirm All Pickups
+                  </Button>
+                </div>
+              )}
               {group.items.map((item: any) => {
                 const canCancel = isCancellable(item.claimed_at);
                 const timeLeft = getTimeRemaining(item.claimed_at);
