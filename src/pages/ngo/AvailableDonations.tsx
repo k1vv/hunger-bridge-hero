@@ -769,6 +769,13 @@ const AvailableDonations = () => {
                           </div>
                         ))}
 
+                        {/* Pickup Location Map */}
+                        <PickupLocationMap
+                          lat={batch.pickup_lat}
+                          lng={batch.pickup_lng}
+                          address={batch.pickup_location}
+                        />
+
                         <div className="flex items-center justify-between pt-2 border-t border-border">
                           <p className="text-xs text-muted-foreground">{selected.size} of {items.length} item(s) selected</p>
                           <div className="flex gap-2">
