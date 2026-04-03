@@ -176,7 +176,15 @@ const MyClaims = () => {
                   <div>
                     <div className="flex items-center gap-2">
                       <span className="text-xs font-bold text-accent">{batch?.batch_number}</span>
-                      <span className="text-sm text-foreground">{batch?.profiles?.business_name || batch?.profiles?.name}</span>
+                      {(batch?.profiles?.business_name || batch?.profiles?.name) && (
+                        <span className="text-xs text-muted-foreground">·</span>
+                      )}
+                      {(batch?.profiles?.business_name || batch?.profiles?.name) && (
+                        <span className="text-sm text-foreground flex items-center gap-1">
+                          <User className="h-3 w-3 text-muted-foreground" />
+                          {batch.profiles.business_name || batch.profiles.name}
+                        </span>
+                      )}
                     </div>
                     <div className="flex gap-3 mt-1 text-xs text-muted-foreground">
                       <span className="flex items-center gap-1"><MapPin className="h-3 w-3" /> {batch?.pickup_location}</span>
