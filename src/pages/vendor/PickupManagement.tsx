@@ -59,6 +59,24 @@ const PickupManagement = () => {
   const { data: pickups = [] } = useQuery({
     queryKey: ["vendor_pickups", user?.id],
     queryFn: async () => {
+      logger.vendor.info("Fetching pickups for vendor", undefined, user?.id);
+
+      // First, let's check ALL batches for this vendor to understand data state
+      const { data: allBatches, error: allBatchesError } = await supabase
+        .from("donation_batches")
+        .select("id, batch_number, status")
+        .eq("vendor_id", user!.id);
+
+      if (allBatchesError) {
+        logger.vendor.error("Failed to fetch all batches for debug", allBatchesError.message, { code: allBatchesError.code }, user?.id);
+      } else {
+        const statusCounts = (allBatches || []).reduce((acc: Record<string, number>, b: any) => {
+          acc[b.status] = (acc[b.status] || 0) + 1;
+          return acc;
+        }, {});
+        logger.vendor.info("DEBUG: All vendor batches", { total: allBatches?.length || 0, statusCounts }, user?.id);
+      }
+
       const { data: batches, error: batchesError } = await supabase
         .from("donation_batches")
         .select(`
@@ -69,7 +87,36 @@ const PickupManagement = () => {
         .eq("vendor_id", user!.id)
         .in("status", ["partially_claimed", "reserved"]);
 
-      if (batchesError) throw batchesError;
+      if (batchesError) {
+        const isRLSError = batchesError.code === "42501" || batchesError.code === "PGRST301";
+        logger.vendor.error(
+          isRLSError ? "RLS POLICY ERROR: Cannot fetch batches" : "Failed to fetch batches",
+          batchesError.message,
+          { code: batchesError.code },
+          user?.id
+        );
+        throw batchesError;
+      }
+
+      logger.vendor.info("Fetched claimed/reserved batches", { count: batches?.length || 0 }, user?.id);
+
+      // Log item statuses within batches for debugging
+      if (batches && batches.length > 0) {
+        for (const batch of batches) {
+          const itemStatuses = (batch.donation_items || []).map((i: any) => ({
+            id: i.id,
+            status: i.status,
+            claimed_by: i.claimed_by,
+            food_name: i.food_name,
+          }));
+          logger.vendor.info("DEBUG: Batch items", {
+            batchId: batch.id,
+            batchNumber: batch.batch_number,
+            itemCount: itemStatuses.length,
+            items: itemStatuses,
+          }, user?.id);
+        }
+      }
 
       const claimedItems: any[] = [];
       for (const batch of batches || []) {
@@ -77,6 +124,8 @@ const PickupManagement = () => {
           claimedItems.push({ ...item, batch });
         }
       }
+
+      logger.vendor.info("Found claimed items ready for pickup", { count: claimedItems.length }, user?.id);
 
       if (claimedItems.length === 0) return [];
 
@@ -87,7 +136,13 @@ const PickupManagement = () => {
           .from("profiles")
           .select("id, name, business_name, email, phone")
           .in("id", ngoIds);
-        if (!profilesError) {
+
+        if (profilesError) {
+          logger.vendor.error("Failed to fetch NGO profiles", profilesError.message, { ngoIds, code: profilesError.code }, user?.id);
+        } else if (profiles && profiles.length === 0 && ngoIds.length > 0) {
+          logger.vendor.warn("RLS POLICY WARNING: Query returned 0 profiles but expected " + ngoIds.length, undefined, user?.id);
+        } else {
+          logger.vendor.info("Fetched NGO profiles", { count: profiles?.length }, user?.id);
           (profiles || []).forEach(p => { profilesMap[p.id] = p; });
         }
       }

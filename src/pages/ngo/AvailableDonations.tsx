@@ -442,11 +442,18 @@ const AvailableDonations = () => {
 
   const claimMutation = useMutation({
     mutationFn: async ({ batchId, itemIds, batch }: { batchId: string; itemIds: string[]; batch: any }) => {
+      logger.ngo.info("Claiming items", { batchId, itemIds, itemCount: itemIds.length }, user?.id);
+
       const { error } = await supabase
         .from("donation_items")
         .update({ status: "claimed", claimed_by: user!.id, claimed_at: new Date().toISOString() })
         .in("id", itemIds);
-      if (error) throw error;
+
+      if (error) {
+        logger.ngo.error("Failed to update item status to claimed", error.message, { code: error.code, itemIds }, user?.id);
+        throw error;
+      }
+      logger.ngo.info("Items status updated to claimed", { itemIds }, user?.id);
 
       const { data: remaining } = await supabase
         .from("donation_items")
@@ -455,7 +462,16 @@ const AvailableDonations = () => {
         .eq("status", "available");
 
       const newBatchStatus = (remaining?.length || 0) === 0 ? "reserved" : "partially_claimed";
-      await supabase.from("donation_batches").update({ status: newBatchStatus }).eq("id", batchId);
+      logger.ngo.info("Updating batch status", { batchId, newBatchStatus, remainingAvailable: remaining?.length || 0 }, user?.id);
+
+      const { error: batchError } = await supabase.from("donation_batches").update({ status: newBatchStatus }).eq("id", batchId);
+
+      if (batchError) {
+        logger.ngo.error("Failed to update batch status", batchError.message, { code: batchError.code, batchId, newBatchStatus }, user?.id);
+        // Don't throw - items are already claimed, just log the error
+      } else {
+        logger.ngo.info("Batch status updated successfully", { batchId, newBatchStatus }, user?.id);
+      }
 
       // Notify vendor
       const ngoName = ngoProfile?.business_name || ngoProfile?.name || "An NGO";
@@ -480,9 +496,22 @@ const AvailableDonations = () => {
     mutationFn: async (batch: any) => {
       const availableItems = (batch.donation_items || []).filter((i: any) => i.status === "available");
       const ids = availableItems.map((i: any) => i.id);
+
+      logger.ngo.info("Claiming all items in batch", { batchId: batch.id, batchNumber: batch.batch_number, itemCount: ids.length }, user?.id);
+
       const { error } = await supabase.from("donation_items").update({ status: "claimed", claimed_by: user!.id, claimed_at: new Date().toISOString() }).in("id", ids);
-      if (error) throw error;
-      await supabase.from("donation_batches").update({ status: "reserved" }).eq("id", batch.id);
+      if (error) {
+        logger.ngo.error("Failed to claim all items", error.message, { code: error.code, batchId: batch.id }, user?.id);
+        throw error;
+      }
+      logger.ngo.info("All items claimed successfully", { batchId: batch.id, itemIds: ids }, user?.id);
+
+      const { error: batchError } = await supabase.from("donation_batches").update({ status: "reserved" }).eq("id", batch.id);
+      if (batchError) {
+        logger.ngo.error("Failed to update batch to reserved", batchError.message, { code: batchError.code, batchId: batch.id }, user?.id);
+      } else {
+        logger.ngo.info("Batch status updated to reserved", { batchId: batch.id }, user?.id);
+      }
 
       // Notify vendor
       const ngoName = ngoProfile?.business_name || ngoProfile?.name || "An NGO";

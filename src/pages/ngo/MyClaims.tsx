@@ -37,14 +37,32 @@ const MyClaims = () => {
       const vendorIds = Array.from(new Set((data || []).map((item: any) => item.donation_batches?.vendor_id).filter(Boolean)));
       let profileMap = new Map();
       if (vendorIds.length > 0) {
-        const { data: profiles } = await supabase
+        const { data: profiles, error: profileError } = await supabase
           .from("profiles")
           .select("id, name, business_name, phone, email")
           .in("id", vendorIds);
+
+        if (profileError) {
+          const isRLSError = profileError.message.includes("permission") ||
+                            profileError.message.includes("policy") ||
+                            profileError.code === "42501" ||
+                            profileError.code === "PGRST301";
+          logger.ngo.error(
+            isRLSError ? "RLS POLICY ERROR: Cannot fetch vendor profiles" : "Failed to fetch vendor profiles",
+            profileError.message,
+            { vendorIds, code: profileError.code, hint: profileError.hint, isRLSError },
+            user?.id
+          );
+        } else if (profiles && profiles.length === 0 && vendorIds.length > 0) {
+          logger.ngo.warn("RLS POLICY WARNING: Query returned 0 profiles but expected " + vendorIds.length + ". Check RLS policies on profiles table.", undefined, user?.id);
+        } else {
+          logger.ngo.info("Fetched vendor profiles", { vendorIds, profileCount: profiles?.length, profiles: profiles?.map(p => ({ id: p.id, name: p.name, business_name: p.business_name })) }, user?.id);
+        }
+
         profileMap = new Map((profiles || []).map((p: any) => [p.id, p]));
       }
 
-      logger.ngo.info("Successfully fetched claimed items", { count: data?.length || 0 }, user?.id);
+      logger.ngo.info("Successfully fetched claimed items", { count: data?.length || 0, vendorIds }, user?.id);
       return (data || []).map((item: any) => ({
         ...item,
         donation_batches: {
