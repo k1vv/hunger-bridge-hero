@@ -98,57 +98,76 @@ const SignupVendor = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background px-4 py-8">
-      <div className="w-full max-w-lg space-y-6">
-        <div className="flex flex-col items-center gap-2">
-          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary">
-            <Leaf className="h-6 w-6 text-primary-foreground" />
-          </div>
-          <h1 className="text-2xl font-bold text-foreground">FoodBridge</h1>
-          <div className="flex items-center gap-2 rounded-full bg-secondary px-3 py-1">
-            <Store className="h-4 w-4 text-secondary-foreground" />
-            <span className="text-sm font-medium text-secondary-foreground">Vendor Portal</span>
-          </div>
+    <div className="min-h-screen flex bg-background">
+      {/* Left branding panel */}
+      <div className="hidden lg:flex lg:w-1/2 flex-col items-center justify-center gap-4 bg-primary/5 px-8">
+        <div className="flex h-16 w-16 items-center justify-center rounded-xl bg-primary">
+          <Leaf className="h-8 w-8 text-primary-foreground" />
         </div>
+        <h1 className="text-3xl font-bold text-foreground">FoodBridge</h1>
+        <div className="flex items-center gap-2 rounded-full bg-secondary px-4 py-1.5">
+          <Store className="h-4 w-4 text-secondary-foreground" />
+          <span className="text-sm font-medium text-secondary-foreground">Vendor Portal</span>
+        </div>
+        <p className="mt-4 max-w-sm text-center text-muted-foreground">
+          Join our network of food donors and help reduce waste while feeding communities in need.
+        </p>
+      </div>
 
-        <Card>
-          <CardHeader className="text-center">
-            <CardTitle>Vendor Sign Up</CardTitle>
-            <CardDescription>Create an account to list food donations</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSignup} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="name">Business Name</Label>
-                <Input id="name" placeholder="Your business name" value={name} onChange={(e) => setName(e.target.value)} required />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <Input id="email" type="email" placeholder="vendor@example.com" value={email} onChange={(e) => setEmail(e.target.value)} required />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="phone">Phone</Label>
-                <Input id="phone" type="tel" placeholder="+60123456789" value={phone} onChange={(e) => setPhone(e.target.value)} />
-              </div>
-
-              <AddressPickerMap value={address} onChange={setAddress} />
-
-              <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
-                <Input id="password" type="password" placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} required />
-              </div>
-
-              <Button type="submit" className="w-full" disabled={loading}>
-                {loading ? "Creating account..." : "Create Account"}
-              </Button>
-            </form>
-
-            <div className="mt-4 text-center text-sm text-muted-foreground">
-              Already have an account?{" "}
-              <Link to="/login/vendor" className="text-primary hover:underline">Sign In</Link>
+      {/* Right form panel */}
+      <div className="flex w-full lg:w-1/2 items-center justify-center px-4 py-8 overflow-y-auto">
+        <div className="w-full max-w-lg space-y-6">
+          {/* Mobile-only branding */}
+          <div className="flex flex-col items-center gap-2 lg:hidden">
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary">
+              <Leaf className="h-6 w-6 text-primary-foreground" />
             </div>
-          </CardContent>
-        </Card>
+            <h1 className="text-2xl font-bold text-foreground">FoodBridge</h1>
+            <div className="flex items-center gap-2 rounded-full bg-secondary px-3 py-1">
+              <Store className="h-4 w-4 text-secondary-foreground" />
+              <span className="text-sm font-medium text-secondary-foreground">Vendor Portal</span>
+            </div>
+          </div>
+
+          <Card>
+            <CardHeader className="text-center">
+              <CardTitle>Vendor Sign Up</CardTitle>
+              <CardDescription>Create an account to list food donations</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleSignup} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="name">Business Name</Label>
+                  <Input id="name" placeholder="Your business name" value={name} onChange={(e) => setName(e.target.value)} required />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email</Label>
+                  <Input id="email" type="email" placeholder="vendor@example.com" value={email} onChange={(e) => setEmail(e.target.value)} required />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="phone">Phone</Label>
+                  <Input id="phone" type="tel" placeholder="+60123456789" value={phone} onChange={(e) => setPhone(e.target.value)} />
+                </div>
+
+                <AddressPickerMap value={address} onChange={setAddress} mapHeight={280} />
+
+                <div className="space-y-2">
+                  <Label htmlFor="password">Password</Label>
+                  <Input id="password" type="password" placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} required />
+                </div>
+
+                <Button type="submit" className="w-full" disabled={loading}>
+                  {loading ? "Creating account..." : "Create Account"}
+                </Button>
+              </form>
+
+              <div className="mt-4 text-center text-sm text-muted-foreground">
+                Already have an account?{" "}
+                <Link to="/login/vendor" className="text-primary hover:underline">Sign In</Link>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   );
