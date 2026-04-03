@@ -7,10 +7,21 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { Truck, User, Phone, CheckCircle2, MapPin } from "lucide-react";
 import { motion } from "framer-motion";
+import { notifyNgoOfPickupComplete } from "@/lib/notifications";
 
 const PickupManagement = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+
+  // Fetch vendor profile for notifications
+  const { data: vendorProfile } = useQuery({
+    queryKey: ["vendor_profile", user?.id],
+    queryFn: async () => {
+      const { data } = await supabase.from("profiles").select("name, business_name").eq("id", user!.id).single();
+      return data;
+    },
+    enabled: !!user,
+  });
 
   const { data: pickups = [] } = useQuery({
     queryKey: ["vendor_pickups", user?.id],
@@ -55,6 +66,19 @@ const PickupManagement = () => {
       const claim = pickups.find(p => p.id === claimId);
       if (claim) {
         await supabase.from("food_listings").update({ status: "delivered" }).eq("id", claim.food_listing_id);
+
+        // Notify NGO that pickup is complete
+        const vendorName = vendorProfile?.business_name || vendorProfile?.name || "A vendor";
+        try {
+          await notifyNgoOfPickupComplete(
+            claim.ngo_user_id,
+            vendorName,
+            claim.food_listings?.title || "Food item",
+            claimId
+          );
+        } catch (notifyErr) {
+          console.error("Failed to send notification:", notifyErr);
+        }
       }
     },
     onSuccess: () => {

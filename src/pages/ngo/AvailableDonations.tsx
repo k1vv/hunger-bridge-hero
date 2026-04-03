@@ -13,6 +13,7 @@ import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import { logger } from "@/lib/logger";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
+import { notifyVendorOfClaim } from "@/lib/notifications";
 
 const AvailableDonations = () => {
   const { user } = useAuth();
@@ -109,8 +110,18 @@ const AvailableDonations = () => {
     }));
   };
 
+  // Fetch NGO profile for notifications
+  const { data: ngoProfile } = useQuery({
+    queryKey: ["ngo_profile", user?.id],
+    queryFn: async () => {
+      const { data } = await supabase.from("profiles").select("name, business_name").eq("id", user!.id).single();
+      return data;
+    },
+    enabled: !!user,
+  });
+
   const claimMutation = useMutation({
-    mutationFn: async ({ batchId, itemIds }: { batchId: string; itemIds: string[] }) => {
+    mutationFn: async ({ batchId, itemIds, batch }: { batchId: string; itemIds: string[]; batch: any }) => {
       const { error } = await supabase
         .from("donation_items")
         .update({ status: "claimed", claimed_by: user!.id, claimed_at: new Date().toISOString() })
@@ -125,6 +136,14 @@ const AvailableDonations = () => {
 
       const newBatchStatus = (remaining?.length || 0) === 0 ? "reserved" : "partially_claimed";
       await supabase.from("donation_batches").update({ status: newBatchStatus }).eq("id", batchId);
+
+      // Notify vendor
+      const ngoName = ngoProfile?.business_name || ngoProfile?.name || "An NGO";
+      try {
+        await notifyVendorOfClaim(batch.vendor_id, ngoName, batch.batch_number, itemIds.length, batchId);
+      } catch (notifyErr) {
+        console.error("Failed to send notification:", notifyErr);
+      }
     },
     onSuccess: () => {
       toast.success("Items claimed successfully!");
@@ -145,6 +164,14 @@ const AvailableDonations = () => {
       const { error } = await supabase.from("donation_items").update({ status: "claimed", claimed_by: user!.id, claimed_at: new Date().toISOString() }).in("id", ids);
       if (error) throw error;
       await supabase.from("donation_batches").update({ status: "reserved" }).eq("id", batch.id);
+
+      // Notify vendor
+      const ngoName = ngoProfile?.business_name || ngoProfile?.name || "An NGO";
+      try {
+        await notifyVendorOfClaim(batch.vendor_id, ngoName, batch.batch_number, ids.length, batch.id);
+      } catch (notifyErr) {
+        console.error("Failed to send notification:", notifyErr);
+      }
     },
     onSuccess: () => {
       toast.success("All items claimed!");
@@ -156,13 +183,13 @@ const AvailableDonations = () => {
     },
   });
 
-  const handleClaim = (batchId: string) => {
+  const handleClaim = (batchId: string, batch: any) => {
     const itemIds = Array.from(selectedItems[batchId] || []);
     if (itemIds.length === 0) {
       toast.error("Select at least one item to claim");
       return;
     }
-    claimMutation.mutate({ batchId, itemIds });
+    claimMutation.mutate({ batchId, itemIds, batch });
   };
 
   const spoilageColor = (risk: string) => {
@@ -329,10 +356,10 @@ const AvailableDonations = () => {
                         <div className="flex items-center justify-between pt-2 border-t border-border">
                           <p className="text-xs text-muted-foreground">{selected.size} of {items.length} item(s) selected</p>
                           <div className="flex gap-2">
-                            <Button size="sm" variant="outline" onClick={() => { selectAll(batch.id, items); handleClaim(batch.id); }}>
+                            <Button size="sm" variant="outline" onClick={() => { selectAll(batch.id, items); handleClaim(batch.id, batch); }}>
                               Claim All ({items.length})
                             </Button>
-                            <Button size="sm" onClick={() => handleClaim(batch.id)} disabled={selected.size === 0 || claimMutation.isPending}>
+                            <Button size="sm" onClick={() => handleClaim(batch.id, batch)} disabled={selected.size === 0 || claimMutation.isPending}>
                               Claim Selected ({selected.size})
                             </Button>
                           </div>

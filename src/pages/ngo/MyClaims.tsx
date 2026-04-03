@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { motion } from "framer-motion";
 import { Package, MapPin, Clock } from "lucide-react";
 import { logger } from "@/lib/logger";
+import { notifyVendorOfClaimCancellation } from "@/lib/notifications";
 
 const statusFilters = ["all", "claimed", "completed", "cancelled"] as const;
 
@@ -55,6 +56,16 @@ const MyClaims = () => {
     enabled: !!user,
   });
 
+  // Fetch NGO profile for notifications
+  const { data: ngoProfile } = useQuery({
+    queryKey: ["ngo_profile", user?.id],
+    queryFn: async () => {
+      const { data } = await supabase.from("profiles").select("name, business_name").eq("id", user!.id).single();
+      return data;
+    },
+    enabled: !!user,
+  });
+
   // Group by batch
   const grouped = claimedItems.reduce((acc: Record<string, { batch: any; items: any[] }>, item: any) => {
     const batchId = item.batch_id;
@@ -89,6 +100,20 @@ const MyClaims = () => {
       } else {
         logger.ngo.debug("Updating batch to partially_claimed status", { batchId: item.batch_id, remainingItems: remaining?.length }, user?.id);
         await supabase.from("donation_batches").update({ status: "partially_claimed" }).eq("id", item.batch_id);
+      }
+
+      // Notify vendor of cancellation
+      const ngoName = ngoProfile?.business_name || ngoProfile?.name || "An NGO";
+      try {
+        await notifyVendorOfClaimCancellation(
+          item.donation_batches?.vendor_id,
+          ngoName,
+          item.food_name,
+          item.donation_batches?.batch_number || "Unknown",
+          item.id
+        );
+      } catch (notifyErr) {
+        console.error("Failed to send notification:", notifyErr);
       }
     },
     onSuccess: () => {

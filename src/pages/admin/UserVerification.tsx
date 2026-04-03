@@ -8,6 +8,7 @@ import { CheckCircle, XCircle, User } from "lucide-react";
 import { motion } from "framer-motion";
 import { logger } from "@/lib/logger";
 import { useAuth } from "@/contexts/AuthContext";
+import { notifyUserOfVerificationStatus } from "@/lib/notifications";
 
 const UserVerification = () => {
   const { user } = useAuth();
@@ -28,7 +29,7 @@ const UserVerification = () => {
   });
 
   const updateStatus = useMutation({
-    mutationFn: async ({ userId, status }: { userId: string; status: string }) => {
+    mutationFn: async ({ userId, status, userName }: { userId: string; status: string; userName?: string }) => {
       logger.admin.info("Updating user verification status", { targetUserId: userId, newStatus: status }, user?.id);
       const { error } = await supabase.from("profiles").update({ verification_status: status }).eq("id", userId);
       if (error) {
@@ -36,6 +37,18 @@ const UserVerification = () => {
         throw error;
       }
       logger.admin.info("Successfully updated verification status", { targetUserId: userId, newStatus: status }, user?.id);
+
+      // Notify user of their verification status
+      try {
+        await notifyUserOfVerificationStatus(
+          userId,
+          status as "verified" | "rejected",
+          userName
+        );
+        logger.admin.info("User notified of verification status", { targetUserId: userId }, user?.id);
+      } catch (notifyErr) {
+        console.error("Failed to send notification:", notifyErr);
+      }
     },
     onSuccess: (_, { status, userId }) => {
       logger.admin.info("User verification update completed", { targetUserId: userId, newStatus: status }, user?.id);
@@ -72,10 +85,10 @@ const UserVerification = () => {
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <Button size="sm" variant="outline" className="text-success" onClick={() => updateStatus.mutate({ userId: user.id, status: "verified" })}>
+                <Button size="sm" variant="outline" className="text-success" onClick={() => updateStatus.mutate({ userId: user.id, status: "verified", userName: user.name || user.business_name })}>
                   <CheckCircle className="h-4 w-4 mr-1" /> Approve
                 </Button>
-                <Button size="sm" variant="outline" className="text-destructive" onClick={() => updateStatus.mutate({ userId: user.id, status: "rejected" })}>
+                <Button size="sm" variant="outline" className="text-destructive" onClick={() => updateStatus.mutate({ userId: user.id, status: "rejected", userName: user.name || user.business_name })}>
                   <XCircle className="h-4 w-4 mr-1" /> Reject
                 </Button>
               </div>

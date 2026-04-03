@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { AlertCircle } from "lucide-react";
 import { motion } from "framer-motion";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { notifyUserOfComplaintResolution } from "@/lib/notifications";
 
 const Complaints = () => {
   const queryClient = useQueryClient();
@@ -25,9 +26,16 @@ const Complaints = () => {
   });
 
   const resolveMutation = useMutation({
-    mutationFn: async ({ id, resolution }: { id: string; resolution: string }) => {
+    mutationFn: async ({ id, resolution, reporterId, complaintType }: { id: string; resolution: string; reporterId: string; complaintType: string }) => {
       const { error } = await supabase.from("complaints").update({ status: "resolved", resolution }).eq("id", id);
       if (error) throw error;
+
+      // Notify reporter that their complaint has been resolved
+      try {
+        await notifyUserOfComplaintResolution(reporterId, complaintType, resolution, id);
+      } catch (notifyErr) {
+        console.error("Failed to send notification:", notifyErr);
+      }
     },
     onSuccess: () => {
       toast.success("Complaint resolved!");
@@ -64,7 +72,7 @@ const Complaints = () => {
                     <DialogContent>
                       <DialogHeader><DialogTitle>Resolve Complaint</DialogTitle></DialogHeader>
                       <Textarea value={resolution} onChange={(e) => setResolution(e.target.value)} placeholder="Enter resolution..." className="mt-2" />
-                      <Button onClick={() => resolveMutation.mutate({ id: c.id, resolution })} className="mt-2 w-full">Submit Resolution</Button>
+                      <Button onClick={() => resolveMutation.mutate({ id: c.id, resolution, reporterId: c.reporter_id, complaintType: c.complaint_type })} className="mt-2 w-full">Submit Resolution</Button>
                     </DialogContent>
                   </Dialog>
                 )}

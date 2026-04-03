@@ -10,11 +10,12 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import LocationPickerMap, { type PickedLocation } from "@/components/LocationPickerMap";
 import { ImagePlus, X, Plus, Trash2, Package, ChevronRight } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { logger } from "@/lib/logger";
+import { notifyNgosOfNewDonation } from "@/lib/notifications";
 
 interface FoodItem {
   id: string;
@@ -53,6 +54,16 @@ const CreateDonation = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+
+  // Fetch vendor profile for notifications
+  const { data: vendorProfile } = useQuery({
+    queryKey: ["vendor_profile", user?.id],
+    queryFn: async () => {
+      const { data } = await supabase.from("profiles").select("name, business_name").eq("id", user!.id).single();
+      return data;
+    },
+    enabled: !!user,
+  });
 
   // Section A: Batch info
   const [pickupLocation, setPickupLocation] = useState<PickedLocation>({ address: "", lat: null, lng: null });
@@ -193,6 +204,17 @@ const CreateDonation = () => {
       }
 
       logger.vendor.info("Donation created successfully", { batchId: batch.id, itemCount: items.length }, user.id);
+
+      // Notify NGOs whose preferences match the donation categories
+      const vendorName = vendorProfile?.business_name || vendorProfile?.name || "A vendor";
+      const itemCategories = [...new Set(items.map(item => item.category).filter(Boolean))];
+      try {
+        await notifyNgosOfNewDonation(vendorName, itemCategories, pickupLocation.address, batch.id);
+        logger.vendor.info("Matching NGOs notified of new donation", { batchId: batch.id, categories: itemCategories }, user.id);
+      } catch (notifyErr) {
+        console.error("Failed to notify NGOs:", notifyErr);
+      }
+
       toast.success(`Donation batch created with ${items.length} item(s)!`);
       queryClient.invalidateQueries({ queryKey: ["vendor_batches"] });
       navigate("/vendor/donations");

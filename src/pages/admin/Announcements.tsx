@@ -13,6 +13,7 @@ import { toast } from "sonner";
 import { Plus, Megaphone } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { motion } from "framer-motion";
+import { notifyUsersOfAnnouncement } from "@/lib/notifications";
 
 const Announcements = () => {
   const { user } = useAuth();
@@ -33,12 +34,26 @@ const Announcements = () => {
 
   const createMutation = useMutation({
     mutationFn: async () => {
-      const { error } = await supabase.from("announcements").insert({
+      const { data, error } = await supabase.from("announcements").insert({
         author_id: user!.id,
         title, content,
         target_role: targetRole === "all" ? null : targetRole,
-      });
+      }).select("id").single();
       if (error) throw error;
+
+      // Notify users of the new announcement
+      try {
+        await notifyUsersOfAnnouncement(
+          targetRole as "vendor" | "ngo" | "all",
+          title,
+          content,
+          data.id
+        );
+      } catch (notifyErr) {
+        console.error("Failed to send notifications:", notifyErr);
+      }
+
+      return data;
     },
     onSuccess: () => {
       toast.success("Announcement published!");
