@@ -41,7 +41,6 @@ const ngoNav: NavItem[] = [
   { label: "My Claims", icon: ClipboardList, path: "/ngo/claims" },
   { label: "Inventory", icon: Package, path: "/ngo/inventory" },
   { label: "Distribution", icon: HandHeart, path: "/ngo/distribution" },
-  { label: "Notifications", icon: Bell, path: "/notifications" },
   { label: "Reports", icon: BarChart3, path: "/ngo/reports" },
   { label: "Profile", icon: User, path: "/ngo/profile" },
 ];

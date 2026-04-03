@@ -69,8 +69,6 @@ const App = () => (
             {/* Role-based dashboard redirect */}
             <Route path="/" element={<ProtectedRoute><RoleDashboard /></ProtectedRoute>} />
 
-            {/* Shared */}
-            <Route path="/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
 
             {/* Vendor routes */}
             <Route path="/vendor/dashboard" element={<ProtectedRoute allowedRoles={["vendor"]}><VendorDashboard /></ProtectedRoute>} />
