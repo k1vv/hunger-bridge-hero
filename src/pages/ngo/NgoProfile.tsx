@@ -138,6 +138,8 @@ const NgoProfile = () => {
   const [storageCapacity, setStorageCapacity] = useState("");
   const [operationHours, setOperationHours] = useState("");
   const [foodTypes, setFoodTypes] = useState<string[]>([]);
+  const [hasMultipleOutlets, setHasMultipleOutlets] = useState(false);
+  const [branchName, setBranchName] = useState("");
 
   // Extended profile data (stored as JSON in storage_capacity field)
   const [extendedData, setExtendedData] = useState<ExtendedProfileData>(defaultExtendedData);
@@ -206,6 +208,8 @@ const NgoProfile = () => {
       setServiceArea(profile.service_area || "");
       setOperationHours(profile.operation_hours || "");
       setFoodTypes(profile.food_types || []);
+      setHasMultipleOutlets(profile.has_multiple_outlets || false);
+      setBranchName(profile.branch_name || "");
 
       // Parse extended data from storage_capacity (JSON)
       if (profile.storage_capacity) {
@@ -247,6 +251,8 @@ const NgoProfile = () => {
         operation_hours: operationHours,
         food_types: foodTypes,
         storage_capacity: JSON.stringify(extendedWithCapacity),
+        has_multiple_outlets: hasMultipleOutlets,
+        branch_name: hasMultipleOutlets ? branchName : null,
       }).eq("id", user!.id);
 
       if (error) throw error;
@@ -433,6 +439,40 @@ const NgoProfile = () => {
                       placeholder="e.g. Mon-Sat 8am-5pm"
                     />
                   </div>
+
+                  {/* Multiple Outlets Section */}
+                  <div className="md:col-span-2 flex items-center justify-between rounded-lg border border-border p-4">
+                    <div className="space-y-0.5">
+                      <Label htmlFor="multipleOutlets" className="text-sm font-medium">
+                        Multiple Outlets
+                      </Label>
+                      <p className="text-xs text-muted-foreground">
+                        Does your organization have multiple locations/branches?
+                      </p>
+                    </div>
+                    <Switch
+                      id="multipleOutlets"
+                      checked={hasMultipleOutlets}
+                      onCheckedChange={setHasMultipleOutlets}
+                    />
+                  </div>
+
+                  {hasMultipleOutlets && (
+                    <div className="md:col-span-2 space-y-2">
+                      <Label htmlFor="branchName" className="flex items-center gap-2">
+                        <Building2 className="h-4 w-4" /> Branch Name
+                      </Label>
+                      <Input
+                        id="branchName"
+                        value={branchName}
+                        onChange={(e) => setBranchName(e.target.value)}
+                        placeholder="e.g. Main Center, North Branch, Downtown Office"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Identify this specific branch/outlet location
+                      </p>
+                    </div>
+                  )}
                 </div>
 
                 <Button type="submit" disabled={saving} className="w-full sm:w-auto">
