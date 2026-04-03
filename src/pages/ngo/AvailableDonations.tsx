@@ -15,6 +15,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { logger } from "@/lib/logger";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { notifyVendorOfClaim } from "@/lib/notifications";
+import PickupLocationMap from "@/components/PickupLocationMap";
 
 // ============================================================================
 // SMART RECOMMENDATION ALGORITHM
