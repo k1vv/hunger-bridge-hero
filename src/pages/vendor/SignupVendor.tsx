@@ -114,7 +114,7 @@ const SignupVendor = () => {
 
       {/* Right form panel */}
       <div className="flex w-full lg:w-1/2 items-center justify-center px-4 py-8 overflow-y-auto">
-        <div className="w-full max-w-lg space-y-6">
+        <div className="w-full max-w-xl space-y-6">
           {/* Mobile-only branding */}
           <div className="flex flex-col items-center gap-2 lg:hidden">
             <img src={foodbridgeLogo} alt="FoodBridge" width={120} height={120} className="object-contain" />
