@@ -19,6 +19,7 @@ export interface StructuredAddress {
 interface AddressPickerMapProps {
   value: StructuredAddress;
   onChange: (address: StructuredAddress) => void;
+  mapHeight?: number;
 }
 const MALAYSIAN_STATES = [
   "Johor",
@@ -43,7 +44,7 @@ function buildFullAddress(addr: Omit<StructuredAddress, "fullAddress" | "lat" | 
   const parts = [addr.street1, addr.street2, addr.postcode + " " + addr.city, addr.state].filter(Boolean);
   return parts.join(", ");
 }
-const AddressPickerMap = ({ value, onChange }: AddressPickerMapProps) => {
+const AddressPickerMap = ({ value, onChange, mapHeight = 192 }: AddressPickerMapProps) => {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<google.maps.Map | null>(null);
   const markerRef = useRef<google.maps.Marker | null>(null);
@@ -249,7 +250,7 @@ const AddressPickerMap = ({ value, onChange }: AddressPickerMapProps) => {
             <MapPin className="h-4 w-4" />
           </Button>
         </div>
-        <div ref={mapRef} className="w-full h-48 rounded-md border border-input bg-muted" style={{ minHeight: 192 }}>
+        <div ref={mapRef} className="w-full rounded-md border border-input bg-muted" style={{ height: mapHeight, minHeight: mapHeight }}>
           {loadingMap && (
             <div className="flex items-center justify-center h-full">
               <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
