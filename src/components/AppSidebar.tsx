@@ -5,13 +5,11 @@ import {
   Plus,
   ClipboardList,
   Truck,
-  Bell,
   BarChart3,
   User,
   Search,
   Package,
   Users as UsersIcon,
-  ShieldCheck,
   Eye,
   AlertCircle,
   Megaphone,
@@ -33,6 +31,7 @@ const vendorNav: NavItem[] = [
   { label: "Pickups", icon: Truck, path: "/vendor/pickups" },
   { label: "Impact Report", icon: BarChart3, path: "/vendor/impact" },
   { label: "Profile", icon: User, path: "/vendor/profile" },
+  { label: "File Complaint", icon: AlertCircle, path: "/vendor/complaints" },
 ];
 
 const ngoNav: NavItem[] = [
@@ -43,12 +42,12 @@ const ngoNav: NavItem[] = [
   { label: "Distribution", icon: HandHeart, path: "/ngo/distribution" },
   { label: "Reports", icon: BarChart3, path: "/ngo/reports" },
   { label: "Profile", icon: User, path: "/ngo/profile" },
+  { label: "File Complaint", icon: AlertCircle, path: "/ngo/complaints" },
 ];
 
 const adminNav: NavItem[] = [
   { label: "Dashboard", icon: LayoutDashboard, path: "/" },
   { label: "Users", icon: UsersIcon, path: "/admin/users" },
-  { label: "Verification", icon: ShieldCheck, path: "/admin/verification" },
   { label: "Donations", icon: UtensilsCrossed, path: "/admin/donations" },
   { label: "Claims Monitoring", icon: Eye, path: "/admin/claims" },
   { label: "Complaints", icon: AlertCircle, path: "/admin/complaints" },

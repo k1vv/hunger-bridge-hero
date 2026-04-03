@@ -2,7 +2,9 @@ import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
 
 type UserRoleSummary = Pick<Tables<"user_roles">, "role">;
-type ReporterSummary = Pick<Tables<"profiles">, "name" | "email">;
+type ReporterSummary = Pick<Tables<"profiles">, "name" | "email" | "phone" | "business_name"> & {
+  role?: string;
+};
 
 export type ProfileWithRoles = Tables<"profiles"> & {
   user_roles: UserRoleSummary[];
@@ -77,12 +79,26 @@ export async function fetchComplaintsWithReporter(): Promise<ComplaintWithReport
 
   const { data: reporters, error: reportersError } = await supabase
     .from("profiles")
-    .select("id, name, email")
+    .select("id, name, email, phone, business_name")
     .in("id", reporterIds);
 
   if (reportersError) {
     throw reportersError;
   }
+
+  // Fetch roles for reporters
+  const { data: roles, error: rolesError } = await supabase
+    .from("user_roles")
+    .select("user_id, role")
+    .in("user_id", reporterIds);
+
+  if (rolesError) {
+    throw rolesError;
+  }
+
+  const rolesByUserId = new Map<string, string>(
+    roles.map((r) => [r.user_id, r.role])
+  );
 
   const reportersById = new Map<string, ReporterSummary>(
     reporters.map((reporter) => [
@@ -90,6 +106,9 @@ export async function fetchComplaintsWithReporter(): Promise<ComplaintWithReport
       {
         name: reporter.name,
         email: reporter.email,
+        phone: reporter.phone,
+        business_name: reporter.business_name,
+        role: rolesByUserId.get(reporter.id),
       },
     ])
   );

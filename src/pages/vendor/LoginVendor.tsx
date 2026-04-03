@@ -40,6 +40,26 @@ const LoginVendor = () => {
       return;
     }
 
+    // Check verification status
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("verification_status")
+      .eq("id", authData.user.id)
+      .single();
+
+    if (profile?.verification_status !== "verified") {
+      await supabase.auth.signOut();
+      setLoading(false);
+      if (profile?.verification_status === "pending") {
+        toast.error("Your account is pending verification. Please wait for admin approval.");
+      } else if (profile?.verification_status === "rejected") {
+        toast.error("Your account verification was rejected. Please contact support.");
+      } else {
+        toast.error("Your account is not verified. Please complete your profile and wait for admin approval.");
+      }
+      return;
+    }
+
     setLoading(false);
     toast.success("Vendor login successful!");
     navigate("/");

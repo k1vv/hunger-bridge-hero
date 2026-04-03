@@ -9,6 +9,7 @@ import ProtectedRoute from "@/components/ProtectedRoute";
 // Shared pages
 import NotFound from "./pages/shared/NotFound";
 import RoleDashboard from "./pages/shared/RoleDashboard";
+import FileComplaint from "./pages/shared/FileComplaint";
 
 
 // Vendor pages
@@ -39,7 +40,6 @@ import NgoProfile from "./pages/ngo/NgoProfile";
 import LoginAdmin from "./pages/admin/LoginAdmin";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import UserManagement from "./pages/admin/UserManagement";
-import UserVerification from "./pages/admin/UserVerification";
 import DonationManagement from "./pages/admin/DonationManagement";
 import ClaimsMonitoring from "./pages/admin/ClaimsMonitoring";
 import Complaints from "./pages/admin/Complaints";
@@ -79,6 +79,7 @@ const App = () => (
             <Route path="/vendor/pickups" element={<ProtectedRoute allowedRoles={["vendor"]}><PickupManagement /></ProtectedRoute>} />
             <Route path="/vendor/profile" element={<ProtectedRoute allowedRoles={["vendor"]}><VendorProfile /></ProtectedRoute>} />
             <Route path="/vendor/impact" element={<ProtectedRoute allowedRoles={["vendor"]}><ImpactReport /></ProtectedRoute>} />
+            <Route path="/vendor/complaints" element={<ProtectedRoute allowedRoles={["vendor"]}><FileComplaint /></ProtectedRoute>} />
 
             {/* NGO routes */}
             <Route path="/ngo/dashboard" element={<ProtectedRoute allowedRoles={["ngo"]}><NgoDashboard /></ProtectedRoute>} />
@@ -89,11 +90,11 @@ const App = () => (
             <Route path="/ngo/distribution" element={<ProtectedRoute allowedRoles={["ngo"]}><Distribution /></ProtectedRoute>} />
             <Route path="/ngo/reports" element={<ProtectedRoute allowedRoles={["ngo"]}><NgoReports /></ProtectedRoute>} />
             <Route path="/ngo/profile" element={<ProtectedRoute allowedRoles={["ngo"]}><NgoProfile /></ProtectedRoute>} />
+            <Route path="/ngo/complaints" element={<ProtectedRoute allowedRoles={["ngo"]}><FileComplaint /></ProtectedRoute>} />
 
             {/* Admin routes */}
             <Route path="/admin/dashboard" element={<ProtectedRoute allowedRoles={["admin"]}><AdminDashboard /></ProtectedRoute>} />
             <Route path="/admin/users" element={<ProtectedRoute allowedRoles={["admin"]}><UserManagement /></ProtectedRoute>} />
-            <Route path="/admin/verification" element={<ProtectedRoute allowedRoles={["admin"]}><UserVerification /></ProtectedRoute>} />
             <Route path="/admin/donations" element={<ProtectedRoute allowedRoles={["admin"]}><DonationManagement /></ProtectedRoute>} />
             <Route path="/admin/claims" element={<ProtectedRoute allowedRoles={["admin"]}><ClaimsMonitoring /></ProtectedRoute>} />
             <Route path="/admin/complaints" element={<ProtectedRoute allowedRoles={["admin"]}><Complaints /></ProtectedRoute>} />
