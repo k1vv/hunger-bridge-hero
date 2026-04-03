@@ -76,10 +76,13 @@ const MyClaims = () => {
     return acc;
   }, {});
 
-  const filteredGroups = Object.entries(grouped).filter(([_, group]: any) => {
-    if (filter === "all") return true;
-    return group.items.some((i: any) => i.status === filter);
-  });
+  const filteredGroups = Object.entries(grouped)
+    .map(([batchId, group]: any) => {
+      if (filter === "all") return [batchId, group];
+      const filteredItems = group.items.filter((i: any) => i.status === filter);
+      return [batchId, { ...group, items: filteredItems }];
+    })
+    .filter(([_, group]: any) => group.items.length > 0);
 
   const cancelItemMutation = useMutation({
     mutationFn: async (item: any) => {
