@@ -338,7 +338,7 @@ const AvailableDonations = () => {
                               <div className="flex-1 min-w-0">
                                 <div className="flex items-center justify-between">
                                   <h4 className="text-sm font-semibold text-foreground">{item.food_name}</h4>
-                                  <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${spoilageColor(item.spoilage_risk)}`}>{item.spoilage_risk}</span>
+                                  <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${spoilageColor(item.spoilage_risk)}`}>Spoilage: {item.spoilage_risk}</span>
                                 </div>
                                 <div className="flex flex-wrap gap-2 mt-1 text-xs text-muted-foreground">
                                   <span><strong>{item.quantity}</strong> {item.unit}</span>
