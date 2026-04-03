@@ -250,7 +250,7 @@ const AddressPickerMap = ({ value, onChange, mapHeight = 192 }: AddressPickerMap
             <MapPin className="h-4 w-4" />
           </Button>
         </div>
-        <div ref={mapRef} className="w-full h-48 rounded-md border border-input bg-muted" style={{ minHeight: 192 }}>
+        <div ref={mapRef} className="w-full rounded-md border border-input bg-muted" style={{ height: mapHeight, minHeight: mapHeight }}>
           {loadingMap && (
             <div className="flex items-center justify-center h-full">
               <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
