@@ -1,4 +1,5 @@
 import PageLayout from "@/components/PageLayout";
+import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -32,7 +33,6 @@ const UserVerification = () => {
   const updateStatus = useMutation({
     mutationFn: async ({ userId, status, userName }: { userId: string; status: string; userName?: string }) => {
       logger.admin.info("Updating user verification status", { targetUserId: userId, newStatus: status }, user?.id);
-      const { supabase } = await import("@/integrations/supabase/client");
       const { error } = await supabase.from("profiles").update({ verification_status: status }).eq("id", userId);
       if (error) {
         logger.admin.error("Failed to update verification status", error.message, { targetUserId: userId, newStatus: status, code: error.code }, user?.id);
