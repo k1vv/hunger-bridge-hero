@@ -19,6 +19,7 @@ export interface StructuredAddress {
 interface AddressPickerMapProps {
   value: StructuredAddress;
   onChange: (address: StructuredAddress) => void;
+  mapHeight?: number;
 }
 const MALAYSIAN_STATES = [
   "Johor",
