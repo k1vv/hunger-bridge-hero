@@ -292,3 +292,22 @@ export async function notifyUserOfComplaintResolution(
     relatedEntityId: complaintId,
   });
 }
+
+/**
+ * Notify NGO when vendor cancels their claim due to no pickup
+ */
+export async function notifyNgoOfClaimCancelledByVendor(
+  ngoId: string,
+  vendorName: string,
+  foodName: string,
+  itemId: string
+): Promise<void> {
+  await createNotification({
+    userId: ngoId,
+    type: "claim_cancelled_by_vendor",
+    title: "Reservation Cancelled by Vendor",
+    message: `${vendorName} has cancelled your reservation for "${foodName}" because it was not picked up in time. The item is now available for others.`,
+    relatedEntityType: "donation_item",
+    relatedEntityId: itemId,
+  });
+}
