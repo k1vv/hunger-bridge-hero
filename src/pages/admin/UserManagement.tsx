@@ -180,7 +180,7 @@ const UserManagement = () => {
               </TableRow>
             ) : (
               filtered.map((u: any) => (
-                <TableRow key={u.id}>
+                <TableRow key={u.id} className="cursor-pointer hover:bg-muted/50" onClick={() => navigate(`/admin/users/${u.id}`)}>
                   <TableCell>
                     <div>
                       <p className="text-sm font-medium text-foreground">{u.name || "-"}</p>
