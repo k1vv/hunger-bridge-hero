@@ -24,6 +24,8 @@ interface NGOProfileData {
   food_types: string[] | null;
   service_area: string | null;
   storage_capacity: string | null;
+  address_lat: number | null;
+  address_lng: number | null;
 }
 
 interface ExtendedNGOProfile {
@@ -36,6 +38,8 @@ interface ExtendedNGOProfile {
   pickupRadius: number;
   canUrgentPickup: boolean;
   priorityNeeds: string[];
+  lat: number | null;
+  lng: number | null;
 }
 
 interface ScoreBreakdown {
@@ -45,6 +49,8 @@ interface ScoreBreakdown {
   storage: number;
   priority: number;
   freshness: number;
+  location: number;
+  distance: number | null; // in km
 }
 
 // Parse extended profile data from storage_capacity JSON
@@ -59,12 +65,16 @@ const parseExtendedProfile = (profile: NGOProfileData | null): ExtendedNGOProfil
     pickupRadius: 10,
     canUrgentPickup: false,
     priorityNeeds: [],
+    lat: null,
+    lng: null,
   };
 
   if (!profile) return defaults;
 
-  // Get food types from profile
+  // Get food types and location from profile
   defaults.foodTypes = profile.food_types || [];
+  defaults.lat = profile.address_lat;
+  defaults.lng = profile.address_lng;
 
   // Parse extended data from storage_capacity JSON
   if (profile.storage_capacity) {
@@ -81,6 +91,8 @@ const parseExtendedProfile = (profile: NGOProfileData | null): ExtendedNGOProfil
           pickupRadius: parseFloat(parsed.pickup_radius) || 10,
           canUrgentPickup: parsed.can_urgent_pickup ?? false,
           priorityNeeds: parsed.priority_needs || [],
+          lat: profile.address_lat,
+          lng: profile.address_lng,
         };
       }
     } catch {
@@ -89,6 +101,30 @@ const parseExtendedProfile = (profile: NGOProfileData | null): ExtendedNGOProfil
   }
 
   return defaults;
+};
+
+// Calculate distance between two coordinates using Haversine formula
+const calculateDistance = (
+  lat1: number | null,
+  lng1: number | null,
+  lat2: number | null,
+  lng2: number | null
+): number | null => {
+  if (lat1 === null || lng1 === null || lat2 === null || lng2 === null) {
+    return null;
+  }
+
+  const R = 6371; // Earth's radius in km
+  const dLat = (lat2 - lat1) * (Math.PI / 180);
+  const dLng = (lng2 - lng1) * (Math.PI / 180);
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * (Math.PI / 180)) *
+      Math.cos(lat2 * (Math.PI / 180)) *
+      Math.sin(dLng / 2) *
+      Math.sin(dLng / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c; // Distance in km
 };
 
 // Map donation item categories to NGO food type preferences
@@ -119,20 +155,29 @@ const calculateRecommendationScore = (
   ngoProfile: ExtendedNGOProfile
 ): ScoreBreakdown => {
   const items = (batch.donation_items || []).filter((i: any) => i.status === "available");
-  if (items.length === 0) return { total: 0, foodMatch: 0, urgency: 0, storage: 0, priority: 0, freshness: 0 };
+  if (items.length === 0) return { total: 0, foodMatch: 0, urgency: 0, storage: 0, priority: 0, freshness: 0, location: 0, distance: null };
 
   let foodMatchScore = 0;
   let urgencyScore = 0;
   let storageScore = 0;
   let priorityScore = 0;
   let freshnessScore = 0;
+  let locationScore = 0;
+
+  // Calculate distance between NGO and pickup location
+  const distance = calculateDistance(
+    ngoProfile.lat,
+    ngoProfile.lng,
+    batch.pickup_lat,
+    batch.pickup_lng
+  );
 
   // ============================================================================
-  // 1. FOOD PREFERENCE MATCHING (0-30 points)
+  // 1. FOOD PREFERENCE MATCHING (0-25 points) - reduced from 30
   // ============================================================================
   if (ngoProfile.foodTypes.length === 0) {
     // No preferences = accepts all, give base score
-    foodMatchScore = 20;
+    foodMatchScore = 17;
   } else {
     let matchingItems = 0;
     for (const item of items) {
@@ -146,25 +191,61 @@ const calculateRecommendationScore = (
       if (hasMatch) matchingItems++;
     }
     const matchRatio = matchingItems / items.length;
-    foodMatchScore = Math.round(matchRatio * 30);
+    foodMatchScore = Math.round(matchRatio * 25);
   }
 
   // ============================================================================
-  // 2. URGENCY SCORE (0-25 points)
+  // 2. LOCATION/DISTANCE SCORE (0-20 points) - NEW
+  // ============================================================================
+  // Score based on distance relative to NGO's pickup radius
+  if (distance !== null) {
+    const pickupRadius = ngoProfile.pickupRadius || 10; // Default 10km
+
+    if (distance <= pickupRadius * 0.25) {
+      // Very close (within 25% of radius) - full points
+      locationScore = 20;
+    } else if (distance <= pickupRadius * 0.5) {
+      // Close (within 50% of radius)
+      locationScore = 16;
+    } else if (distance <= pickupRadius * 0.75) {
+      // Moderate (within 75% of radius)
+      locationScore = 12;
+    } else if (distance <= pickupRadius) {
+      // Within radius but far
+      locationScore = 8;
+    } else if (distance <= pickupRadius * 1.5) {
+      // Slightly outside radius
+      locationScore = 4;
+    } else {
+      // Far outside radius
+      locationScore = 0;
+    }
+
+    // Bonus for NGOs with transport capability
+    if (ngoProfile.hasTransport && distance <= pickupRadius * 1.5) {
+      locationScore = Math.min(20, locationScore + 2);
+    }
+  } else {
+    // No location data available - give neutral score
+    locationScore = 10;
+  }
+
+  // ============================================================================
+  // 3. URGENCY SCORE (0-20 points) - reduced from 25
   // ============================================================================
   const highRiskCount = items.filter((i: any) => i.spoilage_risk === "high").length;
   const mediumRiskCount = items.filter((i: any) => i.spoilage_risk === "medium").length;
 
   // More weight for high-risk items
-  urgencyScore = Math.min(25, highRiskCount * 10 + mediumRiskCount * 3);
+  urgencyScore = Math.min(20, highRiskCount * 8 + mediumRiskCount * 3);
 
   // Bonus if NGO can handle urgent pickups and there are urgent items
   if (ngoProfile.canUrgentPickup && highRiskCount > 0) {
-    urgencyScore = Math.min(25, urgencyScore + 5);
+    urgencyScore = Math.min(20, urgencyScore + 4);
   }
 
   // ============================================================================
-  // 3. STORAGE COMPATIBILITY (0-20 points)
+  // 4. STORAGE COMPATIBILITY (0-15 points) - reduced from 20
   // ============================================================================
   let compatibleItems = 0;
   for (const item of items) {
@@ -181,10 +262,10 @@ const calculateRecommendationScore = (
     if (canStore) compatibleItems++;
   }
   const storageRatio = compatibleItems / items.length;
-  storageScore = Math.round(storageRatio * 20);
+  storageScore = Math.round(storageRatio * 15);
 
   // ============================================================================
-  // 4. PRIORITY NEEDS (0-15 points)
+  // 5. PRIORITY NEEDS (0-12 points) - reduced from 15
   // ============================================================================
   if (ngoProfile.priorityNeeds.length > 0) {
     let priorityMatches = 0;
@@ -199,11 +280,11 @@ const calculateRecommendationScore = (
       if (isPriority) priorityMatches++;
     }
     const priorityRatio = priorityMatches / items.length;
-    priorityScore = Math.round(priorityRatio * 15);
+    priorityScore = Math.round(priorityRatio * 12);
   }
 
   // ============================================================================
-  // 5. FRESHNESS SCORE (0-10 points)
+  // 6. FRESHNESS SCORE (0-8 points) - reduced from 10
   // ============================================================================
   // Based on how soon the pickup date is (earlier = fresher = better for urgent items)
   const pickupDate = new Date(batch.pickup_date);
@@ -211,27 +292,30 @@ const calculateRecommendationScore = (
   const daysUntilPickup = Math.max(0, Math.floor((pickupDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)));
 
   if (daysUntilPickup === 0) {
-    freshnessScore = 10; // Today's pickup
+    freshnessScore = 8; // Today's pickup
   } else if (daysUntilPickup === 1) {
-    freshnessScore = 8;
+    freshnessScore = 6;
   } else if (daysUntilPickup <= 3) {
-    freshnessScore = 5;
+    freshnessScore = 4;
   } else {
     freshnessScore = 2;
   }
 
   // ============================================================================
   // TOTAL SCORE (0-100)
+  // Food: 25 + Location: 20 + Urgency: 20 + Storage: 15 + Priority: 12 + Freshness: 8 = 100
   // ============================================================================
-  const total = Math.min(100, foodMatchScore + urgencyScore + storageScore + priorityScore + freshnessScore);
+  const total = Math.min(100, foodMatchScore + locationScore + urgencyScore + storageScore + priorityScore + freshnessScore);
 
   return {
     total,
     foodMatch: foodMatchScore,
+    location: locationScore,
     urgency: urgencyScore,
     storage: storageScore,
     priority: priorityScore,
     freshness: freshnessScore,
+    distance: distance !== null ? Math.round(distance * 10) / 10 : null, // Round to 1 decimal
   };
 };
 
@@ -248,11 +332,19 @@ const AvailableDonations = () => {
   const { data: ngoProfile } = useQuery({
     queryKey: ["ngo_profile_full", user?.id],
     queryFn: async () => {
-      const { data } = await supabase
+      logger.ngo.info("Fetching NGO profile for recommendations", undefined, user?.id);
+      const { data, error } = await supabase
         .from("profiles")
-        .select("name, business_name, food_types, service_area, storage_capacity")
+        .select("name, business_name, food_types, service_area, storage_capacity, address_lat, address_lng")
         .eq("id", user!.id)
         .single();
+
+      if (error) {
+        logger.ngo.error("Failed to fetch NGO profile", error.message, { code: error.code }, user?.id);
+        throw error;
+      }
+
+      logger.ngo.info("Successfully fetched NGO profile", { hasLocation: !!data?.address_lat, hasFoodTypes: !!data?.food_types?.length }, user?.id);
       return data;
     },
     enabled: !!user,
@@ -489,28 +581,32 @@ const AvailableDonations = () => {
                             <TooltipTrigger asChild>
                               <span className={`text-sm font-bold flex-shrink-0 ${scoreColor}`}>{score}% Match</span>
                             </TooltipTrigger>
-                            <TooltipContent className="w-48">
+                            <TooltipContent className="w-52">
                               <p className="text-xs font-semibold mb-2">Match Breakdown</p>
                               <div className="space-y-1 text-xs">
                                 <div className="flex justify-between">
                                   <span>Food Match:</span>
-                                  <span className="font-medium">{breakdown?.foodMatch || 0}/30</span>
+                                  <span className="font-medium">{breakdown?.foodMatch || 0}/25</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span>Location:</span>
+                                  <span className="font-medium">{breakdown?.location || 0}/20{breakdown?.distance !== null ? ` (${breakdown.distance}km)` : ""}</span>
                                 </div>
                                 <div className="flex justify-between">
                                   <span>Urgency:</span>
-                                  <span className="font-medium">{breakdown?.urgency || 0}/25</span>
+                                  <span className="font-medium">{breakdown?.urgency || 0}/20</span>
                                 </div>
                                 <div className="flex justify-between">
                                   <span>Storage:</span>
-                                  <span className="font-medium">{breakdown?.storage || 0}/20</span>
+                                  <span className="font-medium">{breakdown?.storage || 0}/15</span>
                                 </div>
                                 <div className="flex justify-between">
                                   <span>Priority:</span>
-                                  <span className="font-medium">{breakdown?.priority || 0}/15</span>
+                                  <span className="font-medium">{breakdown?.priority || 0}/12</span>
                                 </div>
                                 <div className="flex justify-between">
                                   <span>Freshness:</span>
-                                  <span className="font-medium">{breakdown?.freshness || 0}/10</span>
+                                  <span className="font-medium">{breakdown?.freshness || 0}/8</span>
                                 </div>
                               </div>
                             </TooltipContent>
@@ -520,22 +616,31 @@ const AvailableDonations = () => {
 
                       {/* Match indicators */}
                       <div className="flex flex-wrap gap-1 mb-2">
-                        {breakdown?.foodMatch >= 20 && (
+                        {breakdown?.foodMatch >= 17 && (
                           <span className="text-[10px] px-1.5 py-0.5 rounded bg-success/10 text-success">Food Match</span>
                         )}
-                        {breakdown?.urgency >= 15 && (
+                        {breakdown?.location >= 16 && (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-info/10 text-info">Nearby</span>
+                        )}
+                        {breakdown?.urgency >= 12 && (
                           <span className="text-[10px] px-1.5 py-0.5 rounded bg-destructive/10 text-destructive">Urgent</span>
                         )}
-                        {breakdown?.storage >= 15 && (
-                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary">Storage OK</span>
+                        {breakdown?.storage >= 12 && (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-accent/10 text-accent">Storage OK</span>
                         )}
-                        {breakdown?.priority >= 10 && (
+                        {breakdown?.priority >= 8 && (
                           <span className="text-[10px] px-1.5 py-0.5 rounded bg-warning/10 text-warning">Priority Need</span>
                         )}
                       </div>
 
                       <div className="space-y-1 text-xs text-muted-foreground mb-3">
-                        <span className="flex items-center gap-1"><MapPin className="h-3 w-3 flex-shrink-0" /> <span className="truncate">{batch.pickup_location}</span></span>
+                        <span className="flex items-center gap-1">
+                          <MapPin className="h-3 w-3 flex-shrink-0" />
+                          <span className="truncate">{batch.pickup_location}</span>
+                          {breakdown?.distance !== null && (
+                            <span className="text-[10px] text-info font-medium ml-1">({breakdown.distance}km)</span>
+                          )}
+                        </span>
                         <span className="flex items-center gap-1"><Clock className="h-3 w-3 flex-shrink-0" /> {batch.pickup_date}</span>
                         <span className="flex items-center gap-1"><Package className="h-3 w-3 flex-shrink-0" /> {items.length} items</span>
                       </div>

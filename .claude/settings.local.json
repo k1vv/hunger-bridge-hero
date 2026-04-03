@@ -3,7 +3,8 @@
     "allow": [
       "Bash(git mv:*)",
       "Bash(git rm:*)",
-      "Bash(npm run build:*)"
+      "Bash(npm run build:*)",
+      "Bash(npx supabase projects list)"
     ],
     "deny": [],
     "ask": []

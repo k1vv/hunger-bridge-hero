@@ -21,7 +21,6 @@ const emptyAddress: StructuredAddress = {
   lng: null,
 };
 
-// Vendor type for DB insertion
 type Vendor = {
   auth_id: string;
   name: string;
