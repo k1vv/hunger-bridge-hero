@@ -64,7 +64,7 @@ const PickupManagement = () => {
         .select(`
           id, batch_number, pickup_location, pickup_date,
           pickup_time_start, pickup_time_end, contact_person, contact_phone,
-          donation_items!inner(id, food_name, quantity, unit, category, status, claimed_by, claimed_at)
+          donation_items!inner(id, food_name, quantity, unit, category, status, claimed_by, claimed_at, expiry_date)
         `)
         .eq("vendor_id", user!.id)
         .in("status", ["partially_claimed", "reserved"]);
