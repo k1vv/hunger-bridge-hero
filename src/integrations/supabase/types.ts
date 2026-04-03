@@ -505,15 +505,68 @@ export type Database = {
         }
         Relationships: []
       }
+      outlets: {
+        Row: {
+          address: string | null
+          address_lat: number | null
+          address_lng: number | null
+          contact_person: string | null
+          contact_phone: string | null
+          created_at: string
+          id: string
+          is_primary: boolean
+          outlet_name: string
+          profile_id: string
+          updated_at: string
+        }
+        Insert: {
+          address?: string | null
+          address_lat?: number | null
+          address_lng?: number | null
+          contact_person?: string | null
+          contact_phone?: string | null
+          created_at?: string
+          id?: string
+          is_primary?: boolean
+          outlet_name: string
+          profile_id: string
+          updated_at?: string
+        }
+        Update: {
+          address?: string | null
+          address_lat?: number | null
+          address_lng?: number | null
+          contact_person?: string | null
+          contact_phone?: string | null
+          created_at?: string
+          id?: string
+          is_primary?: boolean
+          outlet_name?: string
+          profile_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "outlets_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           address: string | null
           address_lat: number | null
           address_lng: number | null
+          branch_name: string | null
           business_name: string | null
+          business_type: string | null
           created_at: string
           email: string | null
           food_types: string[] | null
+          has_multiple_outlets: boolean
           id: string
           name: string | null
           operation_hours: string | null
@@ -527,10 +580,13 @@ export type Database = {
           address?: string | null
           address_lat?: number | null
           address_lng?: number | null
+          branch_name?: string | null
           business_name?: string | null
+          business_type?: string | null
           created_at?: string
           email?: string | null
           food_types?: string[] | null
+          has_multiple_outlets?: boolean
           id: string
           name?: string | null
           operation_hours?: string | null
@@ -544,10 +600,13 @@ export type Database = {
           address?: string | null
           address_lat?: number | null
           address_lng?: number | null
+          branch_name?: string | null
           business_name?: string | null
+          business_type?: string | null
           created_at?: string
           email?: string | null
           food_types?: string[] | null
+          has_multiple_outlets?: boolean
           id?: string
           name?: string | null
           operation_hours?: string | null
