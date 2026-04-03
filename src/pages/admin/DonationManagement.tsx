@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import PageLayout from "@/components/PageLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -7,11 +7,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Search, Package, MapPin, Trash2 } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Search, Package, MapPin, Trash2, AlertTriangle, Clock, TrendingDown } from "lucide-react";
 import { motion } from "framer-motion";
 import { logger } from "@/lib/logger";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
+import { calculateUnclaimedRisk, type UnclaimedRiskFactors } from "@/lib/impact-calculations";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -124,6 +126,50 @@ const DonationManagement = () => {
     return matchesFilter && matchesSearch;
   });
 
+  // Calculate risk for each batch - memoized to avoid recalculation
+  const batchRisks = useMemo(() => {
+    const risks: Record<string, ReturnType<typeof calculateUnclaimedRisk>> = {};
+    const now = new Date();
+    const isWeekend = now.getDay() === 0 || now.getDay() === 6;
+
+    for (const batch of batches) {
+      // Only calculate risk for available or partially_claimed batches
+      if (batch.status !== "available" && batch.status !== "partially_claimed") continue;
+
+      const items = batch.donation_items || [];
+      const createdAt = new Date(batch.created_at);
+      const hourssincePosted = (now.getTime() - createdAt.getTime()) / (1000 * 60 * 60);
+
+      // Calculate hours until expiry from pickup_date
+      const pickupDate = new Date(batch.pickup_date);
+      const hoursUntilExpiry = (pickupDate.getTime() - now.getTime()) / (1000 * 60 * 60);
+
+      // Determine primary category from items
+      const categories = items.map((i: any) => i.category);
+      const category = categories[0] || "Other";
+
+      // Determine spoilage risk based on category
+      const highSpoilageCategories = ["Cooked", "Ready-to-eat", "Dairy"];
+      const mediumSpoilageCategories = ["Bakery", "Fruits", "Vegetables"];
+      let spoilageRisk: "low" | "medium" | "high" = "low";
+      if (highSpoilageCategories.includes(category)) spoilageRisk = "high";
+      else if (mediumSpoilageCategories.includes(category)) spoilageRisk = "medium";
+
+      const factors: UnclaimedRiskFactors = {
+        hourssincePosted,
+        hoursUntilExpiry,
+        category,
+        spoilageRisk,
+        hasBeenClaimed: batch.status === "partially_claimed",
+        isWeekend,
+      };
+
+      risks[batch.id] = calculateUnclaimedRisk(factors);
+    }
+
+    return risks;
+  }, [batches]);
+
   const statusColor = (s: string) => {
     switch (s) {
       case "available": return "bg-success/10 text-success border-success/30";
@@ -152,10 +198,31 @@ const DonationManagement = () => {
         </div>
       </div>
 
+      <TooltipProvider>
       <div className="space-y-3">
         {filtered.map((batch: any, i: number) => {
           const items = batch.donation_items || [];
           const canCancel = batch.status !== "cancelled" && batch.status !== "completed";
+          const risk = batchRisks[batch.id];
+
+          // Risk indicator colors
+          const getRiskColor = (level: string) => {
+            switch (level) {
+              case "critical": return "bg-destructive/10 text-destructive border-destructive/30";
+              case "high": return "bg-orange-500/10 text-orange-600 border-orange-500/30";
+              case "medium": return "bg-warning/10 text-warning border-warning/30";
+              default: return "bg-success/10 text-success border-success/30";
+            }
+          };
+
+          const getRiskIcon = (level: string) => {
+            switch (level) {
+              case "critical": return <AlertTriangle className="h-3 w-3" />;
+              case "high": return <TrendingDown className="h-3 w-3" />;
+              case "medium": return <Clock className="h-3 w-3" />;
+              default: return null;
+            }
+          };
 
           return (
             <motion.div key={batch.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.02 }}
@@ -166,6 +233,26 @@ const DonationManagement = () => {
                     <span className="text-xs font-bold text-primary">{batch.batch_number}</span>
                     <span className="text-sm text-foreground">{batch.profiles?.business_name || batch.profiles?.name}</span>
                     <Badge variant="outline" className={`text-xs capitalize ${statusColor(batch.status)}`}>{batch.status}</Badge>
+                    {risk && risk.riskLevel !== "low" && (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Badge variant="outline" className={`text-xs flex items-center gap-1 cursor-help ${getRiskColor(risk.riskLevel)}`}>
+                            {getRiskIcon(risk.riskLevel)}
+                            {risk.riskLevel === "critical" ? "Critical Risk" : risk.riskLevel === "high" ? "High Risk" : "At Risk"}
+                          </Badge>
+                        </TooltipTrigger>
+                        <TooltipContent side="top" className="max-w-xs">
+                          <div className="space-y-1">
+                            <p className="font-semibold">Unclaimed Risk: {risk.riskScore}%</p>
+                            <ul className="text-xs list-disc list-inside">
+                              {risk.reasons.map((reason, idx) => (
+                                <li key={idx}>{reason}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        </TooltipContent>
+                      </Tooltip>
+                    )}
                   </div>
                   <div className="flex gap-3 mt-1 text-xs text-muted-foreground flex-wrap">
                     <span className="flex items-center gap-1"><MapPin className="h-3 w-3" /> {batch.pickup_location}</span>
@@ -215,6 +302,7 @@ const DonationManagement = () => {
         })}
         {filtered.length === 0 && <div className="text-center py-12 text-sm text-muted-foreground">No donations found</div>}
       </div>
+      </TooltipProvider>
 
       {/* Cancel Confirmation Dialog */}
       <AlertDialog open={cancelDialogOpen} onOpenChange={setCancelDialogOpen}>

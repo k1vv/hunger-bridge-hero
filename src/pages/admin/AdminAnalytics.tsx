@@ -2,9 +2,10 @@ import PageLayout from "@/components/PageLayout";
 import StatCard from "@/components/StatCard";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
-import { UtensilsCrossed, TrendingDown, Truck, Recycle, Users, HandHeart, Package, Building2 } from "lucide-react";
+import { UtensilsCrossed, TrendingDown, Truck, Recycle, Users, HandHeart, Package, Building2, Leaf, DollarSign, Utensils } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend, LineChart, Line, AreaChart, Area } from "recharts";
 import { motion } from "framer-motion";
+import { calculateFoodValue, calculateMealsServed, calculateCO2Saved, formatImpactValue } from "@/lib/impact-calculations";
 
 const COLORS = ["hsl(var(--destructive))", "hsl(var(--accent))", "hsl(var(--info))", "hsl(var(--warning))", "hsl(var(--success))", "hsl(var(--muted-foreground))"];
 
@@ -96,6 +97,45 @@ const AdminAnalytics = () => {
 
   const claimRate = totalItems > 0 ? Math.round((completedItems / totalItems) * 100) : 0;
 
+  // Calculate impact metrics using the impact-calculations library
+  const impactMetrics = (() => {
+    let totalValueRM = 0;
+    let totalMeals = 0;
+    let totalCO2Saved = 0;
+    let completedValueRM = 0;
+    let completedMeals = 0;
+    let completedCO2Saved = 0;
+
+    items.forEach((item: any) => {
+      const qty = parseFloat(item.quantity) || 0;
+      const unit = item.unit || "kg";
+      const category = item.category || "Other";
+
+      const value = calculateFoodValue(qty, unit, category);
+      const meals = calculateMealsServed(qty, unit, category);
+      const co2 = calculateCO2Saved(qty, unit, category);
+
+      totalValueRM += value;
+      totalMeals += meals;
+      totalCO2Saved += co2;
+
+      if (item.status === "completed") {
+        completedValueRM += value;
+        completedMeals += meals;
+        completedCO2Saved += co2;
+      }
+    });
+
+    return {
+      totalValueRM,
+      totalMeals,
+      totalCO2Saved,
+      completedValueRM,
+      completedMeals,
+      completedCO2Saved,
+    };
+  })();
+
   // Calculate beneficiaries from distributions
   const totalBeneficiaries = distributions.reduce((sum: number, d: any) => {
     try {
@@ -183,6 +223,121 @@ const AdminAnalytics = () => {
         <StatCard title="Beneficiaries" value={totalBeneficiaries} icon={HandHeart} variant="primary" />
         <StatCard title="Vendors" value={vendorCount} icon={Building2} variant="default" />
         <StatCard title="NGOs" value={ngoCount} icon={Users} variant="success" />
+      </div>
+
+      {/* Impact Statistics */}
+      <div className="mb-6">
+        <h2 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
+          <Leaf className="h-4 w-4 text-success" />
+          Impact Metrics (Food Saved)
+        </h2>
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="rounded-xl border border-success/30 bg-success/5 p-4 shadow-card"
+          >
+            <div className="flex items-center gap-2 mb-1">
+              <DollarSign className="h-4 w-4 text-success" />
+              <p className="text-xs text-success">Value Saved</p>
+            </div>
+            <p className="text-xl font-bold text-success">{formatImpactValue(impactMetrics.completedValueRM, "currency")}</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              of {formatImpactValue(impactMetrics.totalValueRM, "currency")} total
+            </p>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.05 }}
+            className="rounded-xl border border-accent/30 bg-accent/5 p-4 shadow-card"
+          >
+            <div className="flex items-center gap-2 mb-1">
+              <Utensils className="h-4 w-4 text-accent" />
+              <p className="text-xs text-accent">Meals Served</p>
+            </div>
+            <p className="text-xl font-bold text-accent">{impactMetrics.completedMeals.toLocaleString()}</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              of {impactMetrics.totalMeals.toLocaleString()} potential
+            </p>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+            className="rounded-xl border border-info/30 bg-info/5 p-4 shadow-card"
+          >
+            <div className="flex items-center gap-2 mb-1">
+              <Leaf className="h-4 w-4 text-info" />
+              <p className="text-xs text-info">CO₂ Prevented</p>
+            </div>
+            <p className="text-xl font-bold text-info">{formatImpactValue(impactMetrics.completedCO2Saved, "co2")}</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              of {formatImpactValue(impactMetrics.totalCO2Saved, "co2")} potential
+            </p>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.15 }}
+            className="rounded-xl border border-warning/30 bg-warning/5 p-4 shadow-card"
+          >
+            <div className="flex items-center gap-2 mb-1">
+              <TrendingDown className="h-4 w-4 text-warning" />
+              <p className="text-xs text-warning">Value Lost (Expired)</p>
+            </div>
+            <p className="text-xl font-bold text-warning">
+              {formatImpactValue(
+                items
+                  .filter((i: any) => i.status === "expired")
+                  .reduce((sum: number, i: any) => sum + calculateFoodValue(parseFloat(i.quantity) || 0, i.unit || "kg", i.category || "Other"), 0),
+                "currency"
+              )}
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">
+              {expiredItems} items expired
+            </p>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            className="rounded-xl border border-border bg-card p-4 shadow-card"
+          >
+            <div className="flex items-center gap-2 mb-1">
+              <Recycle className="h-4 w-4 text-muted-foreground" />
+              <p className="text-xs text-muted-foreground">Avg Value/Item</p>
+            </div>
+            <p className="text-xl font-bold text-foreground">
+              {formatImpactValue(totalItems > 0 ? impactMetrics.totalValueRM / totalItems : 0, "currency")}
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">
+              per donation item
+            </p>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.25 }}
+            className="rounded-xl border border-border bg-card p-4 shadow-card"
+          >
+            <div className="flex items-center gap-2 mb-1">
+              <HandHeart className="h-4 w-4 text-muted-foreground" />
+              <p className="text-xs text-muted-foreground">Avg Meals/Beneficiary</p>
+            </div>
+            <p className="text-xl font-bold text-foreground">
+              {totalBeneficiaries > 0 ? (impactMetrics.completedMeals / totalBeneficiaries).toFixed(1) : "0"}
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">
+              meals per person
+            </p>
+          </motion.div>
+        </div>
       </div>
 
       {/* Secondary Stats */}

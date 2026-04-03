@@ -4,7 +4,8 @@
       "Bash(git mv:*)",
       "Bash(git rm:*)",
       "Bash(npm run build:*)",
-      "Bash(npx supabase projects list)"
+      "Bash(npx supabase projects list)",
+      "Bash(npm run test:*)"
     ],
     "deny": [],
     "ask": []
