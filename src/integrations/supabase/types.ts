@@ -422,6 +422,7 @@ export type Database = {
           food_title: string
           id: string
           ngo_user_id: string
+          notes: string | null
           quantity_distributed: string | null
           quantity_received: string | null
           quantity_remaining: string | null
@@ -436,6 +437,7 @@ export type Database = {
           food_title: string
           id?: string
           ngo_user_id: string
+          notes?: string | null
           quantity_distributed?: string | null
           quantity_received?: string | null
           quantity_remaining?: string | null
@@ -450,6 +452,7 @@ export type Database = {
           food_title?: string
           id?: string
           ngo_user_id?: string
+          notes?: string | null
           quantity_distributed?: string | null
           quantity_received?: string | null
           quantity_remaining?: string | null
