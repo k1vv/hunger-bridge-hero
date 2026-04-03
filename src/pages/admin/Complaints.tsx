@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, Mail, Phone, Building, User } from "lucide-react";
 import { motion } from "framer-motion";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { fetchComplaintsWithReporter } from "@/lib/admin-queries";
@@ -49,19 +49,66 @@ const Complaints = () => {
         {complaints.map((c: any, i: number) => (
           <motion.div key={c.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}
             className="rounded-xl border border-border bg-card p-5 shadow-card">
-            <div className="flex items-start justify-between">
-              <div className="flex items-start gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-destructive/10">
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex items-start gap-3 flex-1">
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-destructive/10 flex-shrink-0">
                   <AlertCircle className="h-5 w-5 text-destructive" />
                 </div>
-                <div>
-                  <p className="text-sm font-semibold text-foreground capitalize">{c.complaint_type}</p>
-                  <p className="text-xs text-muted-foreground">By: {c.reporter?.name || c.reporter?.email || "Unknown"}</p>
-                  <p className="text-sm text-muted-foreground mt-2">{c.description}</p>
-                  {c.resolution && <p className="text-xs text-success mt-2">Resolution: {c.resolution}</p>}
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-1">
+                    <p className="text-sm font-semibold text-foreground capitalize">{c.complaint_type.replace(/_/g, " ")}</p>
+                    {c.reporter?.role && (
+                      <Badge variant="outline" className="text-xs capitalize">
+                        {c.reporter.role}
+                      </Badge>
+                    )}
+                  </div>
+
+                  {/* Reporter Contact Info */}
+                  <div className="rounded-lg bg-muted/50 p-3 mb-3">
+                    <p className="text-xs font-medium text-foreground mb-2">Complainant Information:</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-muted-foreground">
+                      <div className="flex items-center gap-1.5">
+                        <User className="h-3 w-3" />
+                        <span>{c.reporter?.name || "Unknown"}</span>
+                      </div>
+                      {c.reporter?.business_name && (
+                        <div className="flex items-center gap-1.5">
+                          <Building className="h-3 w-3" />
+                          <span>{c.reporter.business_name}</span>
+                        </div>
+                      )}
+                      {c.reporter?.email && (
+                        <div className="flex items-center gap-1.5">
+                          <Mail className="h-3 w-3" />
+                          <a href={`mailto:${c.reporter.email}`} className="text-primary hover:underline">
+                            {c.reporter.email}
+                          </a>
+                        </div>
+                      )}
+                      {c.reporter?.phone && (
+                        <div className="flex items-center gap-1.5">
+                          <Phone className="h-3 w-3" />
+                          <a href={`tel:${c.reporter.phone}`} className="text-primary hover:underline">
+                            {c.reporter.phone}
+                          </a>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <p className="text-sm text-muted-foreground">{c.description}</p>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Filed on {new Date(c.created_at).toLocaleDateString()} at {new Date(c.created_at).toLocaleTimeString()}
+                  </p>
+                  {c.resolution && (
+                    <div className="mt-3 p-2 rounded-lg bg-success/5 border border-success/20">
+                      <p className="text-xs text-success">Resolution: {c.resolution}</p>
+                    </div>
+                  )}
                 </div>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-col items-end gap-2">
                 <Badge variant="outline" className={`text-xs capitalize ${c.status === "resolved" ? "bg-success/10 text-success" : "bg-warning/10 text-warning"}`}>{c.status}</Badge>
                 {c.status !== "resolved" && (
                   <Dialog open={selectedId === c.id} onOpenChange={(o) => { if (o) setSelectedId(c.id); else setSelectedId(null); }}>
