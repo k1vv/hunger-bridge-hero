@@ -402,12 +402,12 @@ const NgoInventory = () => {
           <p className="text-2xl font-bold text-destructive">{metrics.expired}</p>
         </motion.div>
 
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="rounded-xl border border-primary/30 bg-primary/5 p-4 shadow-card">
-          <div className="flex items-center gap-2 text-primary mb-1">
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="rounded-xl border border-accent/30 bg-accent/5 p-4 shadow-card">
+          <div className="flex items-center gap-2 text-accent mb-1">
             <TrendingDown className="h-4 w-4" />
             <span className="text-xs">Low Stock</span>
           </div>
-          <p className="text-2xl font-bold text-primary">{metrics.lowStock}</p>
+          <p className="text-2xl font-bold text-accent">{metrics.lowStock}</p>
         </motion.div>
 
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }} className="rounded-xl border border-border bg-card p-4 shadow-card">
@@ -434,9 +434,9 @@ const NgoInventory = () => {
             </motion.div>
           )}
           {metrics.lowStock > 0 && (
-            <motion.div initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.1 }} className="flex items-center gap-3 rounded-lg border border-primary/30 bg-primary/5 p-3">
-              <TrendingDown className="h-5 w-5 text-primary flex-shrink-0" />
-              <p className="text-sm text-primary">
+            <motion.div initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.1 }} className="flex items-center gap-3 rounded-lg border border-accent/30 bg-accent/5 p-3">
+              <TrendingDown className="h-5 w-5 text-accent flex-shrink-0" />
+              <p className="text-sm text-accent">
                 <strong>{metrics.lowStock} item(s)</strong> running low on stock.
               </p>
             </motion.div>
@@ -753,12 +753,12 @@ const NgoInventory = () => {
                     <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${
                       level === "expired" ? "bg-destructive/10" :
                       level === "urgent" ? "bg-warning/10" :
-                      "bg-primary/10"
+                      "bg-accent/10"
                     }`}>
                       <Package className={`h-5 w-5 ${
                         level === "expired" ? "text-destructive" :
                         level === "urgent" ? "text-warning" :
-                        "text-primary"
+                        "text-accent"
                       }`} />
                     </div>
                     <div>
@@ -766,7 +766,7 @@ const NgoInventory = () => {
                         <h3 className="text-sm font-semibold text-foreground">{item.food_title}</h3>
                         {level === "expired" && <Badge variant="destructive" className="text-xs">Expired</Badge>}
                         {level === "urgent" && <Badge className="text-xs bg-warning text-warning-foreground">Urgent</Badge>}
-                        {isLowStock && <Badge variant="outline" className="text-xs text-primary border-primary">Low Stock</Badge>}
+                        {isLowStock && <Badge variant="outline" className="text-xs text-accent border-accent">Low Stock</Badge>}
                       </div>
                       <div className="flex flex-wrap gap-3 mt-1 text-xs text-muted-foreground">
                         <span className="flex items-center gap-1">
@@ -892,8 +892,8 @@ const NgoInventory = () => {
 
       {/* FIFO Suggestion */}
       {filteredInventory.length > 0 && sortBy === "expiry" && (
-        <div className="mt-6 rounded-xl border border-primary/20 bg-primary/5 p-4">
-          <div className="flex items-center gap-2 text-primary mb-2">
+        <div className="mt-6 rounded-xl border border-accent/20 bg-accent/5 p-4">
+          <div className="flex items-center gap-2 text-accent mb-2">
             <CheckCircle className="h-5 w-5" />
             <span className="text-sm font-semibold">FIFO Suggestion</span>
           </div>

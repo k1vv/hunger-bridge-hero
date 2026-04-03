@@ -35,7 +35,7 @@ const NgoDashboard = () => {
   return (
     <PageLayout title="NGO Dashboard" subtitle="Overview of your food collection activity">
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-8">
-        <StatCard title="Available Batches" value={availableCount} icon={Search} variant="primary" />
+        <StatCard title="Available Batches" value={availableCount} icon={Search} variant="accent" />
         <StatCard title="Active Claims" value={activeClaims.length} icon={ClipboardList} variant="accent" />
         <StatCard title="Completed" value={completedClaims.length} icon={CheckCircle} variant="success" />
         <StatCard title="Total Claimed" value={claimedItems.length} icon={Package} variant="default" />
@@ -45,7 +45,7 @@ const NgoDashboard = () => {
         <div>
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-sm font-semibold text-foreground">Recent Claims</h2>
-            <Link to="/ngo/claims" className="text-xs text-primary hover:underline">View all</Link>
+            <Link to="/ngo/claims" className="text-xs text-accent hover:underline">View all</Link>
           </div>
           <div className="space-y-3">
             {activeClaims.slice(0, 5).map((item: any, i: number) => (
@@ -67,12 +67,12 @@ const NgoDashboard = () => {
         <div>
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-sm font-semibold text-foreground">Browse Donations</h2>
-            <Link to="/ngo/available" className="text-xs text-primary hover:underline">View all</Link>
+            <Link to="/ngo/available" className="text-xs text-accent hover:underline">View all</Link>
           </div>
           <div className="rounded-xl border border-border bg-card p-6 shadow-card text-center">
             <Search className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
             <p className="text-sm text-muted-foreground">Browse {availableCount} available donation batches</p>
-            <Link to="/ngo/available" className="inline-block mt-3 text-sm text-primary hover:underline">Go to Available Donations →</Link>
+            <Link to="/ngo/available" className="inline-block mt-3 text-sm text-accent hover:underline">Go to Available Donations →</Link>
           </div>
         </div>
       </div>

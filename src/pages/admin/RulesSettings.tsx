@@ -31,8 +31,8 @@ const RulesSettings = () => {
           <motion.div key={section.title} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.1 }}
             className="rounded-xl border border-border bg-card p-6 shadow-card">
             <div className="flex items-center gap-3 mb-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-                <section.icon className="h-5 w-5 text-primary" />
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-destructive/10">
+                <section.icon className="h-5 w-5 text-destructive" />
               </div>
               <div>
                 <h3 className="text-sm font-semibold text-foreground">{section.title}</h3>
@@ -42,7 +42,7 @@ const RulesSettings = () => {
             <ul className="space-y-2 ml-13">
               {section.items.map((item, j) => (
                 <li key={j} className="text-sm text-muted-foreground flex items-start gap-2">
-                  <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-primary/50 flex-shrink-0" />
+                  <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-destructive/50 flex-shrink-0" />
                   {item}
                 </li>
               ))}

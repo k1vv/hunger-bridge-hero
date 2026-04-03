@@ -463,13 +463,13 @@ const Distribution = () => {
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.15 }}
-          className="rounded-xl border border-primary/30 bg-primary/5 p-4 shadow-card"
+          className="rounded-xl border border-accent/30 bg-accent/5 p-4 shadow-card"
         >
-          <div className="flex items-center gap-2 text-primary mb-1">
+          <div className="flex items-center gap-2 text-accent mb-1">
             <HandHeart className="h-4 w-4" />
             <span className="text-xs">Total Distributions</span>
           </div>
-          <p className="text-2xl font-bold text-primary">{metrics.totalDistributions}</p>
+          <p className="text-2xl font-bold text-accent">{metrics.totalDistributions}</p>
         </motion.div>
 
         <motion.div
@@ -596,7 +596,7 @@ const Distribution = () => {
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.03 }}
-                className="rounded-xl border border-border bg-card p-4 shadow-card hover:border-primary/30 transition-colors cursor-pointer"
+                className="rounded-xl border border-border bg-card p-4 shadow-card hover:border-accent/30 transition-colors cursor-pointer"
                 onClick={() => viewRecordDetail(record)}
               >
                 <div className="flex items-start justify-between">
@@ -673,11 +673,11 @@ const Distribution = () => {
             {[1, 2, 3].map((s) => (
               <div key={s} className="flex items-center">
                 <div className={`h-8 w-8 rounded-full flex items-center justify-center text-sm font-medium ${
-                  step >= s ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+                  step >= s ? "bg-accent text-accent-foreground" : "bg-muted text-muted-foreground"
                 }`}>
                   {step > s ? <CheckCircle className="h-4 w-4" /> : s}
                 </div>
-                {s < 3 && <div className={`w-12 h-0.5 ${step > s ? "bg-primary" : "bg-muted"}`} />}
+                {s < 3 && <div className={`w-12 h-0.5 ${step > s ? "bg-accent" : "bg-muted"}`} />}
               </div>
             ))}
           </div>
@@ -695,8 +695,8 @@ const Distribution = () => {
                       onClick={() => setDistributionType(type.value)}
                       className={`p-3 rounded-lg border cursor-pointer transition-colors ${
                         distributionType === type.value
-                          ? "border-primary bg-primary/5"
-                          : "border-border hover:border-primary/50"
+                          ? "border-accent bg-accent/5"
+                          : "border-border hover:border-accent/50"
                       }`}
                     >
                       <p className="text-sm font-medium">{type.label}</p>
@@ -801,8 +801,8 @@ const Distribution = () => {
             <div className="space-y-4">
               {/* FIFO Recommendation */}
               {inventoryWithWarnings.filter((i: any) => i.fifoRecommended).length > 0 && (
-                <div className="rounded-lg border border-primary/30 bg-primary/5 p-3">
-                  <div className="flex items-center gap-2 text-primary mb-2">
+                <div className="rounded-lg border border-accent/30 bg-accent/5 p-3">
+                  <div className="flex items-center gap-2 text-accent mb-2">
                     <Info className="h-4 w-4" />
                     <span className="text-sm font-medium">FIFO Recommendation</span>
                   </div>
@@ -828,12 +828,12 @@ const Distribution = () => {
                           key={item.id}
                           className={`flex items-center justify-between p-3 rounded-lg border transition-colors ${
                             isSelected
-                              ? "border-primary bg-primary/5"
+                              ? "border-accent bg-accent/5"
                               : item.expiryLevel === "urgent"
                                 ? "border-warning/50 bg-warning/5"
                                 : item.expiryLevel === "expired"
                                   ? "border-destructive/50 bg-destructive/5 opacity-50"
-                                  : "border-border hover:border-primary/30"
+                                  : "border-border hover:border-accent/30"
                           }`}
                         >
                           <div className="flex items-center gap-3">
@@ -852,7 +852,7 @@ const Distribution = () => {
                               <div className="flex items-center gap-2">
                                 <p className="text-sm font-medium">{item.food_title}</p>
                                 {item.fifoRecommended && (
-                                  <Badge className="text-[10px] bg-primary/10 text-primary">FIFO</Badge>
+                                  <Badge className="text-[10px] bg-accent/10 text-accent">FIFO</Badge>
                                 )}
                                 {item.expiryLevel === "urgent" && (
                                   <Badge className="text-[10px] bg-warning text-warning-foreground">Urgent</Badge>
@@ -888,7 +888,7 @@ const Distribution = () => {
               {selectedItems.length > 0 && (
                 <div className="space-y-2">
                   <Label>Selected Items ({selectedItems.length})</Label>
-                  <div className="space-y-2 border border-primary/30 rounded-lg p-3 bg-primary/5">
+                  <div className="space-y-2 border border-accent/30 rounded-lg p-3 bg-accent/5">
                     {selectedItems.map((selected) => {
                       const maxQty = parseFloat(selected.item.quantity_remaining) || 0;
                       return (
@@ -1011,7 +1011,7 @@ const Distribution = () => {
               </div>
 
               {/* Items to Distribute */}
-              <div className="rounded-lg border border-primary/30 bg-primary/5 p-4 space-y-2">
+              <div className="rounded-lg border border-accent/30 bg-accent/5 p-4 space-y-2">
                 <h4 className="text-sm font-semibold flex items-center gap-2">
                   <Package className="h-4 w-4" />
                   Items to Distribute ({selectedItems.length})
@@ -1024,7 +1024,7 @@ const Distribution = () => {
                     </div>
                   ))}
                 </div>
-                <div className="pt-2 border-t border-primary/30 flex justify-between font-semibold">
+                <div className="pt-2 border-t border-accent/30 flex justify-between font-semibold">
                   <span>Total Quantity</span>
                   <span>{totalQuantity} units</span>
                 </div>

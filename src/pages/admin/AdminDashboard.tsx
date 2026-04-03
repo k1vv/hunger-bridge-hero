@@ -163,12 +163,12 @@ const AdminDashboard = () => {
     <PageLayout title="Admin Dashboard" subtitle="System-wide overview and monitoring">
       {/* Primary Stats */}
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6 mb-6">
-        <StatCard title="Total Vendors" value={vendorCount} icon={Users} variant="primary" />
+        <StatCard title="Total Vendors" value={vendorCount} icon={Users} variant="destructive" />
         <StatCard title="Total NGOs" value={ngoCount} icon={Building2} variant="success" />
         <StatCard title="Active Donations" value={activeBatches} icon={UtensilsCrossed} variant="accent" />
         <StatCard title="Pending Pickup" value={reservedBatches} icon={Clock} variant="default" />
         <StatCard title="Completed" value={completedBatches} icon={CheckCircle} variant="success" />
-        <StatCard title="Beneficiaries" value={totalBeneficiaries} icon={HandHeart} variant="primary" />
+        <StatCard title="Beneficiaries" value={totalBeneficiaries} icon={HandHeart} variant="destructive" />
       </div>
 
       {/* Alerts Section */}
@@ -226,7 +226,7 @@ const AdminDashboard = () => {
                   fontSize: "12px",
                 }}
               />
-              <Bar dataKey="total" fill="hsl(var(--primary))" name="Total Items" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="total" fill="hsl(var(--destructive))" name="Total Items" radius={[4, 4, 0, 0]} />
               <Bar dataKey="completed" fill="hsl(var(--success))" name="Completed" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
@@ -275,7 +275,7 @@ const AdminDashboard = () => {
               <span className="text-xs text-muted-foreground flex items-center gap-2">
                 <HandHeart className="h-3 w-3" /> Distributions
               </span>
-              <span className="text-sm font-semibold text-primary">{distributions.length}</span>
+              <span className="text-sm font-semibold text-destructive">{distributions.length}</span>
             </div>
           </div>
         </motion.div>
@@ -304,7 +304,7 @@ const AdminDashboard = () => {
                   fontSize: "12px",
                 }}
               />
-              <Line type="monotone" dataKey="batches" stroke="hsl(var(--primary))" name="Batches" strokeWidth={2} dot={{ r: 3 }} />
+              <Line type="monotone" dataKey="batches" stroke="hsl(var(--destructive))" name="Batches" strokeWidth={2} dot={{ r: 3 }} />
               <Line type="monotone" dataKey="items" stroke="hsl(var(--success))" name="Items" strokeWidth={2} dot={{ r: 3 }} />
             </LineChart>
           </ResponsiveContainer>
@@ -335,7 +335,7 @@ const AdminDashboard = () => {
                     className={`text-xs capitalize ${
                       activity.status === "completed" ? "bg-success/10 text-success" :
                       activity.status === "claimed" ? "bg-info/10 text-info" :
-                      activity.status === "available" ? "bg-primary/10 text-primary" :
+                      activity.status === "available" ? "bg-destructive/10 text-destructive" :
                       "bg-muted text-muted-foreground"
                     }`}
                   >

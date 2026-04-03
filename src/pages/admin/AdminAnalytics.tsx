@@ -6,7 +6,7 @@ import { UtensilsCrossed, TrendingDown, Truck, Recycle, Users, HandHeart, Packag
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend, LineChart, Line, AreaChart, Area } from "recharts";
 import { motion } from "framer-motion";
 
-const COLORS = ["hsl(var(--primary))", "hsl(var(--accent))", "hsl(var(--info))", "hsl(var(--warning))", "hsl(var(--success))", "hsl(var(--muted-foreground))"];
+const COLORS = ["hsl(var(--destructive))", "hsl(var(--accent))", "hsl(var(--info))", "hsl(var(--warning))", "hsl(var(--success))", "hsl(var(--muted-foreground))"];
 
 const AdminAnalytics = () => {
   // Fetch all donation batches with items
@@ -167,7 +167,7 @@ const AdminAnalytics = () => {
 
   // Status breakdown
   const statusData = [
-    { name: "Available", value: availableItems, color: "hsl(var(--primary))" },
+    { name: "Available", value: availableItems, color: "hsl(var(--destructive))" },
     { name: "Claimed", value: claimedItems, color: "hsl(var(--info))" },
     { name: "Completed", value: completedItems, color: "hsl(var(--success))" },
     { name: "Expired", value: expiredItems, color: "hsl(var(--destructive))" },
@@ -177,10 +177,10 @@ const AdminAnalytics = () => {
     <PageLayout title="Analytics" subtitle="Comprehensive platform metrics and insights">
       {/* Primary Stats */}
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6 mb-6">
-        <StatCard title="Total Donations" value={totalItems} icon={Package} variant="primary" />
+        <StatCard title="Total Donations" value={totalItems} icon={Package} variant="destructive" />
         <StatCard title="Completed" value={completedItems} icon={Truck} variant="success" />
         <StatCard title="Success Rate" value={`${claimRate}%`} icon={Recycle} variant="accent" />
-        <StatCard title="Beneficiaries" value={totalBeneficiaries} icon={HandHeart} variant="primary" />
+        <StatCard title="Beneficiaries" value={totalBeneficiaries} icon={HandHeart} variant="destructive" />
         <StatCard title="Vendors" value={vendorCount} icon={Building2} variant="default" />
         <StatCard title="NGOs" value={ngoCount} icon={Users} variant="success" />
       </div>
@@ -208,10 +208,10 @@ const AdminAnalytics = () => {
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="rounded-xl border border-primary/30 bg-primary/5 p-4 shadow-card"
+          className="rounded-xl border border-destructive/30 bg-destructive/5 p-4 shadow-card"
         >
-          <p className="text-xs text-primary mb-1">Total Distributions</p>
-          <p className="text-xl font-bold text-primary">{distributions.length}</p>
+          <p className="text-xs text-destructive mb-1">Total Distributions</p>
+          <p className="text-xl font-bold text-destructive">{distributions.length}</p>
         </motion.div>
         <motion.div
           initial={{ opacity: 0, y: 10 }}
@@ -246,7 +246,7 @@ const AdminAnalytics = () => {
                   fontSize: "12px",
                 }}
               />
-              <Bar dataKey="donated" fill="hsl(var(--primary))" name="Donated" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="donated" fill="hsl(var(--destructive))" name="Donated" radius={[4, 4, 0, 0]} />
               <Bar dataKey="completed" fill="hsl(var(--success))" name="Completed" radius={[4, 4, 0, 0]} />
               <Bar dataKey="distributed" fill="hsl(var(--accent))" name="Distributed" radius={[4, 4, 0, 0]} />
             </BarChart>
@@ -312,7 +312,7 @@ const AdminAnalytics = () => {
                   fontSize: "12px",
                 }}
               />
-              <Area type="monotone" dataKey="donations" stroke="hsl(var(--primary))" fill="hsl(var(--primary)/0.2)" name="Donations" />
+              <Area type="monotone" dataKey="donations" stroke="hsl(var(--destructive))" fill="hsl(var(--destructive)/0.2)" name="Donations" />
               <Area type="monotone" dataKey="completed" stroke="hsl(var(--success))" fill="hsl(var(--success)/0.2)" name="Completed" />
               <Area type="monotone" dataKey="distributions" stroke="hsl(var(--accent))" fill="hsl(var(--accent)/0.2)" name="Distributions" />
             </AreaChart>
@@ -375,7 +375,7 @@ const AdminAnalytics = () => {
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">Available</span>
-              <span className="font-medium text-primary">{availableItems}</span>
+              <span className="font-medium text-destructive">{availableItems}</span>
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">Pending Pickup</span>
