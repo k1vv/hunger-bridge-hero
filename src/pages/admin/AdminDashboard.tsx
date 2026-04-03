@@ -163,12 +163,12 @@ const AdminDashboard = () => {
     <PageLayout title="Admin Dashboard" subtitle="System-wide overview and monitoring">
       {/* Primary Stats */}
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6 mb-6">
-        <StatCard title="Total Vendors" value={vendorCount} icon={Users} variant="destructive" />
+        <StatCard title="Total Vendors" value={vendorCount} icon={Users} variant="primary" />
         <StatCard title="Total NGOs" value={ngoCount} icon={Building2} variant="success" />
         <StatCard title="Active Donations" value={activeBatches} icon={UtensilsCrossed} variant="accent" />
         <StatCard title="Pending Pickup" value={reservedBatches} icon={Clock} variant="default" />
         <StatCard title="Completed" value={completedBatches} icon={CheckCircle} variant="success" />
-        <StatCard title="Beneficiaries" value={totalBeneficiaries} icon={HandHeart} variant="destructive" />
+        <StatCard title="Beneficiaries" value={totalBeneficiaries} icon={HandHeart} variant="primary" />
       </div>
 
       {/* Alerts Section */}
