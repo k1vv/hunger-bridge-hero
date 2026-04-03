@@ -9,7 +9,7 @@ import ProtectedRoute from "@/components/ProtectedRoute";
 // Shared pages
 import NotFound from "./pages/shared/NotFound";
 import RoleDashboard from "./pages/shared/RoleDashboard";
-import Notifications from "./pages/shared/Notifications";
+
 
 // Vendor pages
 import LoginVendor from "./pages/vendor/LoginVendor";
