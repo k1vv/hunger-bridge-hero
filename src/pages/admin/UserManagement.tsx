@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import PageLayout from "@/components/PageLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -17,6 +18,7 @@ import { notifyUserOfVerificationStatus } from "@/lib/notifications";
 
 const UserManagement = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [roleFilter, setRoleFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -178,7 +180,7 @@ const UserManagement = () => {
               </TableRow>
             ) : (
               filtered.map((u: any) => (
-                <TableRow key={u.id}>
+                <TableRow key={u.id} className="cursor-pointer hover:bg-muted/50" onClick={() => navigate(`/admin/users/${u.id}`)}>
                   <TableCell>
                     <div>
                       <p className="text-sm font-medium text-foreground">{u.name || "-"}</p>
@@ -225,7 +227,7 @@ const UserManagement = () => {
                   <TableCell className="text-xs text-muted-foreground">
                     {new Date(u.created_at).toLocaleDateString()}
                   </TableCell>
-                  <TableCell className="text-right">
+                  <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                     <div className="flex items-center justify-end gap-1">
                       {u.verification_status !== "verified" && (
                         <Button
