@@ -1,30 +1,28 @@
 import { useState } from "react";
 import PageLayout from "@/components/PageLayout";
-import { supabase } from "@/integrations/supabase/client";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { toast } from "sonner";
 import { logger } from "@/lib/logger";
+import { fetchProfilesWithRoles } from "@/lib/admin-queries";
 import { useAuth } from "@/contexts/AuthContext";
 
 const UserManagement = () => {
   const { user } = useAuth();
-  const queryClient = useQueryClient();
   const [roleFilter, setRoleFilter] = useState("all");
 
   const { data: users = [] } = useQuery({
     queryKey: ["admin_users"],
     queryFn: async () => {
       logger.admin.info("Fetching all users", undefined, user?.id);
-      const { data, error } = await supabase.from("profiles").select("*, user_roles(role)").order("created_at", { ascending: false });
-      if (error) {
+      try {
+        const data = await fetchProfilesWithRoles();
+        logger.admin.info("Successfully fetched users", { count: data.length || 0 }, user?.id);
+        return data;
+      } catch (error: any) {
         logger.admin.error("Failed to fetch users", error.message, { code: error.code }, user?.id);
         throw error;
       }
-      logger.admin.info("Successfully fetched users", { count: data?.length || 0 }, user?.id);
-      return data;
     },
   });
 

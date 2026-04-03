@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { CheckCircle, XCircle, User } from "lucide-react";
 import { motion } from "framer-motion";
 import { logger } from "@/lib/logger";
+import { fetchProfilesWithRoles } from "@/lib/admin-queries";
 import { useAuth } from "@/contexts/AuthContext";
 import { notifyUserOfVerificationStatus } from "@/lib/notifications";
 
@@ -18,13 +19,14 @@ const UserVerification = () => {
     queryKey: ["pending_verification"],
     queryFn: async () => {
       logger.admin.info("Fetching pending verification users", undefined, user?.id);
-      const { data, error } = await supabase.from("profiles").select("*, user_roles(role)").eq("verification_status", "pending").order("created_at", { ascending: false });
-      if (error) {
+      try {
+        const data = await fetchProfilesWithRoles("pending");
+        logger.admin.info("Successfully fetched pending users", { count: data.length || 0 }, user?.id);
+        return data;
+      } catch (error: any) {
         logger.admin.error("Failed to fetch pending users", error.message, { code: error.code }, user?.id);
         throw error;
       }
-      logger.admin.info("Successfully fetched pending users", { count: data?.length || 0 }, user?.id);
-      return data;
     },
   });
 
