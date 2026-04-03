@@ -9,7 +9,7 @@ import ProtectedRoute from "@/components/ProtectedRoute";
 // Shared pages
 import NotFound from "./pages/shared/NotFound";
 import RoleDashboard from "./pages/shared/RoleDashboard";
-import Notifications from "./pages/shared/Notifications";
+
 
 // Vendor pages
 import LoginVendor from "./pages/vendor/LoginVendor";
@@ -69,8 +69,6 @@ const App = () => (
             {/* Role-based dashboard redirect */}
             <Route path="/" element={<ProtectedRoute><RoleDashboard /></ProtectedRoute>} />
 
-            {/* Shared */}
-            <Route path="/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
 
             {/* Vendor routes */}
             <Route path="/vendor/dashboard" element={<ProtectedRoute allowedRoles={["vendor"]}><VendorDashboard /></ProtectedRoute>} />

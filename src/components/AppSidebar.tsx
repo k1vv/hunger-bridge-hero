@@ -31,7 +31,6 @@ const vendorNav: NavItem[] = [
   { label: "Create Donation", icon: Plus, path: "/vendor/create" },
   { label: "My Donations", icon: ClipboardList, path: "/vendor/donations" },
   { label: "Pickups", icon: Truck, path: "/vendor/pickups" },
-  { label: "Notifications", icon: Bell, path: "/notifications" },
   { label: "Impact Report", icon: BarChart3, path: "/vendor/impact" },
   { label: "Profile", icon: User, path: "/vendor/profile" },
 ];
@@ -42,7 +41,6 @@ const ngoNav: NavItem[] = [
   { label: "My Claims", icon: ClipboardList, path: "/ngo/claims" },
   { label: "Inventory", icon: Package, path: "/ngo/inventory" },
   { label: "Distribution", icon: HandHeart, path: "/ngo/distribution" },
-  { label: "Notifications", icon: Bell, path: "/notifications" },
   { label: "Reports", icon: BarChart3, path: "/ngo/reports" },
   { label: "Profile", icon: User, path: "/ngo/profile" },
 ];
