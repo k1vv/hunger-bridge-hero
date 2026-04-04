@@ -40,8 +40,9 @@ describe("Notifications", () => {
       eq: mockEq,
       in: mockIn,
     });
-    mockEq.mockResolvedValue({ data: [], error: null });
-    mockIn.mockResolvedValue({ data: [], error: null });
+    mockEq.mockReset();
+      mockEq.mockResolvedValue({ data: [], error: null });
+    mockIn.mockReturnValue({ eq: mockEq });
   });
 
   // ============================================================================
@@ -190,6 +191,7 @@ describe("Notifications", () => {
     });
 
     it("returns empty array when no users found", async () => {
+      mockEq.mockReset();
       mockEq.mockResolvedValue({ data: [], error: null });
 
       const result = await getUsersByRole("admin");
@@ -356,14 +358,15 @@ describe("Notifications", () => {
     };
 
     beforeEach(() => {
-      // Mock getUsersByRole to return NGO IDs
-      mockEq.mockResolvedValue({
+      // Mock getUsersByRole to return NGO IDs (first .eq() call)
+      mockEq.mockResolvedValueOnce({
         data: [{ user_id: "ngo1" }, { user_id: "ngo2" }, { user_id: "ngo3" }],
         error: null,
       });
     });
 
     it("returns early if no NGOs found", async () => {
+      mockEq.mockReset();
       mockEq.mockResolvedValue({ data: [], error: null });
 
       await notifyNgosOfNewDonation(
@@ -378,7 +381,7 @@ describe("Notifications", () => {
     });
 
     it("notifies NGOs with no food type preferences", async () => {
-      mockIn.mockResolvedValue({
+      mockEq.mockResolvedValueOnce({
         data: [
           { id: "ngo1", food_types: null, address_lat: 3.14, address_lng: 101.69, storage_capacity: null, verification_status: "verified" },
           { id: "ngo2", food_types: [], address_lat: 3.14, address_lng: 101.69, storage_capacity: null, verification_status: "verified" },
@@ -398,7 +401,7 @@ describe("Notifications", () => {
     });
 
     it("notifies only matching NGOs based on food type preferences", async () => {
-      mockIn.mockResolvedValue({
+      mockEq.mockResolvedValueOnce({
         data: [
           { id: "ngo1", food_types: ["Vegetables", "Fruits"], address_lat: 3.14, address_lng: 101.69, storage_capacity: null, verification_status: "verified" },
           { id: "ngo2", food_types: ["Bakery", "Dairy"], address_lat: 3.14, address_lng: 101.69, storage_capacity: null, verification_status: "verified" },
@@ -422,7 +425,7 @@ describe("Notifications", () => {
     });
 
     it("handles case-insensitive category matching", async () => {
-      mockIn.mockResolvedValue({
+      mockEq.mockResolvedValueOnce({
         data: [
           { id: "ngo1", food_types: ["vegetables"], address_lat: 3.14, address_lng: 101.69, storage_capacity: null, verification_status: "verified" },
         ],
@@ -441,7 +444,7 @@ describe("Notifications", () => {
     });
 
     it("formats category text correctly for 3 or fewer categories", async () => {
-      mockIn.mockResolvedValue({
+      mockEq.mockResolvedValueOnce({
         data: [{ id: "ngo1", food_types: null, address_lat: 3.14, address_lng: 101.69, storage_capacity: null, verification_status: "verified" }],
         error: null,
       });
@@ -466,7 +469,7 @@ describe("Notifications", () => {
     });
 
     it("truncates category text for more than 3 categories", async () => {
-      mockIn.mockResolvedValue({
+      mockEq.mockResolvedValueOnce({
         data: [{ id: "ngo1", food_types: null, address_lat: 3.14, address_lng: 101.69, storage_capacity: null, verification_status: "verified" }],
         error: null,
       });
@@ -493,7 +496,7 @@ describe("Notifications", () => {
     });
 
     it("returns early if no matching NGOs found", async () => {
-      mockIn.mockResolvedValue({
+      mockEq.mockResolvedValueOnce({
         data: [
           { id: "ngo1", food_types: ["Dairy"], address_lat: 3.14, address_lng: 101.69, storage_capacity: null, verification_status: "verified" },
         ],
