@@ -690,7 +690,7 @@ const NgoInventory = () => {
                 <Plus className="h-4 w-4 mr-1" /> Add Item
               </Button>
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>Add Inventory Item</DialogTitle>
               </DialogHeader>
@@ -814,7 +814,7 @@ const NgoInventory = () => {
 
       {/* Edit Dialog */}
       <Dialog open={!!editingItem} onOpenChange={(open) => { if (!open) { setEditingItem(null); resetForm(); } }}>
-        <DialogContent>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Edit Inventory Item</DialogTitle>
           </DialogHeader>
