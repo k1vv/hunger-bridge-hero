@@ -16,7 +16,6 @@ import {
   BookOpen,
   FileText,
   Settings,
-  Leaf,
   LogOut,
   HandHeart,
 } from "lucide-react";
