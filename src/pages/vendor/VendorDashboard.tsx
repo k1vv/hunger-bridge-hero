@@ -46,10 +46,11 @@ const VendorDashboard = () => {
     );
   }
 
-  // 🔥 SIMPLIFIED LOGIC (no status system yet)
-  const active = batches;
-  const pending = []; // future feature
-  const completed = []; // future feature
+  // 🔥 FILTER BY ACTUAL STATUS
+  const available = batches.filter((b: any) => b.status === "available");
+  const claimed = batches.filter((b: any) => b.status === "claimed");
+  const completed = batches.filter((b: any) => b.status === "completed");
+  const cancelled = batches.filter((b: any) => b.status === "cancelled");
 
   const totalItems = batches.reduce(
     (sum: number, b: any) => sum + (b.donation_items?.length || 0),
@@ -64,14 +65,14 @@ const VendorDashboard = () => {
       {/* 🔥 STATS */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-8">
         <StatCard
-          title="Active Batches"
-          value={active.length}
+          title="Available"
+          value={available.length}
           icon={UtensilsCrossed}
           variant="primary"
         />
         <StatCard
-          title="Pending Pickups"
-          value={pending.length}
+          title="Claimed"
+          value={claimed.length}
           icon={Clock}
           variant="accent"
         />
@@ -117,13 +118,23 @@ const VendorDashboard = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <div className="flex items-center gap-2">
-                    {/* 🔥 FIXED BADGE */}
                     <span className="text-xs font-bold text-primary">
                       {batch.batch_number || "Batch"}
                     </span>
 
-                    <Badge variant="outline" className="text-xs">
-                      Available
+                    <Badge
+                      variant="outline"
+                      className={`text-xs capitalize ${
+                        batch.status === "completed"
+                          ? "border-success text-success"
+                          : batch.status === "claimed"
+                            ? "border-accent text-accent"
+                            : batch.status === "cancelled"
+                              ? "border-destructive text-destructive"
+                              : ""
+                      }`}
+                    >
+                      {batch.status}
                     </Badge>
 
                     <Badge variant="outline" className="text-xs capitalize">
