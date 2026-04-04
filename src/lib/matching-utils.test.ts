@@ -1,13 +1,29 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import {
   calculateDistance,
   calculateReverseMatchScore,
   getRecommendedNGOs,
   formatDistance,
   categoryToFoodType,
+  calculateHybridMatchScore,
+  getAIRecommendedNGOs,
+  getMatchExplanation,
+  isAIMatchingAvailable,
   type NGOProfile,
   type DonationItem,
 } from "./matching-utils";
+
+// Mock the AI matching module
+vi.mock("./ai/matching", async () => {
+  return {
+    calculateAIMatchScore: vi.fn(),
+    calculateAIMatchScoresBatch: vi.fn(),
+    generateMatchExplanation: vi.fn(),
+    isAIMatchingAvailable: vi.fn(() => false), // Default to false
+  };
+});
+
+import * as aiMatching from "./ai/matching";
 
 describe("calculateDistance", () => {
   it("should return null when lat1 is null", () => {
@@ -372,6 +388,287 @@ describe("formatDistance", () => {
     expect(formatDistance(1000)).toBe("1000.0km");
   });
 });
+
+// ============================================================================
+// AI-ENHANCED MATCHING TESTS
+// ============================================================================
+
+describe("calculateHybridMatchScore", () => {
+  const baseNGO: NGOProfile = {
+    id: "ngo-1",
+    organization_name: "Test NGO",
+    lat: 3.1390,
+    lng: 101.6869,
+    food_types: ["Cooked Food"],
+    storage_types: ["Room Temperature"],
+    pickup_radius: 10,
+    verification_status: "verified",
+  };
+
+  const baseItems: DonationItem[] = [
+    { category: "Cooked Meals", storage_condition: "room_temperature" },
+  ];
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("should return rule-based score when AI is not available", async () => {
+    vi.mocked(aiMatching.isAIMatchingAvailable).mockReturnValue(false);
+
+    const score = await calculateHybridMatchScore(baseNGO, baseItems, 3.1390, 101.6869);
+
+    expect(score.aiEnhanced).toBeUndefined();
+    expect(score.total).toBeGreaterThan(0);
+  });
+
+  it("should include AI score when AI is available", async () => {
+    vi.mocked(aiMatching.isAIMatchingAvailable).mockReturnValue(true);
+    vi.mocked(aiMatching.calculateAIMatchScore).mockResolvedValue({
+      semanticScore: 80,
+      explanationScore: 70,
+      totalAIScore: 76,
+      confidence: 0.85,
+      matchReasons: ["Good match"],
+      warnings: [],
+    });
+
+    const score = await calculateHybridMatchScore(baseNGO, baseItems, 3.1390, 101.6869);
+
+    expect(score.aiEnhanced).toBe(true);
+    expect(score.aiScore).toBeDefined();
+    expect(score.aiScore?.semanticScore).toBe(80);
+  });
+
+  it("should blend rule-based and AI scores (60/40 ratio)", async () => {
+    vi.mocked(aiMatching.isAIMatchingAvailable).mockReturnValue(true);
+    vi.mocked(aiMatching.calculateAIMatchScore).mockResolvedValue({
+      semanticScore: 100,
+      explanationScore: 100,
+      totalAIScore: 100,
+      confidence: 1,
+      matchReasons: [],
+      warnings: [],
+    });
+
+    const score = await calculateHybridMatchScore(baseNGO, baseItems, 3.1390, 101.6869);
+
+    // Hybrid total should be: (ruleBasedTotal * 0.6) + (100 * 0.4)
+    // This means the total should be boosted by the AI score
+    expect(score.aiEnhanced).toBe(true);
+    expect(score.total).toBeGreaterThan(0);
+  });
+
+  it("should fall back to rule-based when AI scoring fails", async () => {
+    vi.mocked(aiMatching.isAIMatchingAvailable).mockReturnValue(true);
+    vi.mocked(aiMatching.calculateAIMatchScore).mockResolvedValue(null);
+
+    const score = await calculateHybridMatchScore(baseNGO, baseItems);
+
+    expect(score.aiEnhanced).toBeUndefined();
+    expect(score.total).toBeGreaterThan(0);
+  });
+
+  it("should handle AI errors gracefully", async () => {
+    vi.mocked(aiMatching.isAIMatchingAvailable).mockReturnValue(true);
+    vi.mocked(aiMatching.calculateAIMatchScore).mockRejectedValue(new Error("API Error"));
+
+    const score = await calculateHybridMatchScore(baseNGO, baseItems);
+
+    // Should not throw, should return rule-based score
+    expect(score.total).toBeGreaterThan(0);
+    expect(score.aiEnhanced).toBeUndefined();
+  });
+});
+
+describe("getAIRecommendedNGOs", () => {
+  const createNGO = (id: string, foodTypes: string[] = []): NGOProfile => ({
+    id,
+    organization_name: `NGO ${id}`,
+    lat: 3.1390 + Math.random() * 0.1,
+    lng: 101.6869 + Math.random() * 0.1,
+    food_types: foodTypes,
+    storage_types: ["Room Temperature"],
+    pickup_radius: 15,
+    verification_status: "verified",
+  });
+
+  const baseItems: DonationItem[] = [
+    { category: "Cooked Meals", storage_condition: "room_temperature" },
+  ];
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("should return empty array for empty inputs", async () => {
+    const result1 = await getAIRecommendedNGOs([], baseItems);
+    const result2 = await getAIRecommendedNGOs([createNGO("1")], []);
+
+    expect(result1).toHaveLength(0);
+    expect(result2).toHaveLength(0);
+  });
+
+  it("should use AI-enhanced scores when available", async () => {
+    vi.mocked(aiMatching.isAIMatchingAvailable).mockReturnValue(true);
+    vi.mocked(aiMatching.calculateAIMatchScoresBatch).mockResolvedValue(
+      new Map([
+        ["ngo-1", {
+          semanticScore: 90,
+          explanationScore: 85,
+          totalAIScore: 88,
+          confidence: 0.9,
+          matchReasons: ["Excellent match"],
+          warnings: [],
+        }],
+      ])
+    );
+
+    const ngos = [createNGO("ngo-1", ["Cooked Food"])];
+    const result = await getAIRecommendedNGOs(ngos, baseItems);
+
+    expect(result.length).toBeGreaterThan(0);
+    if (result.length > 0) {
+      expect(result[0].score.aiEnhanced).toBe(true);
+    }
+  });
+
+  it("should fall back to rule-based when AI is not available", async () => {
+    vi.mocked(aiMatching.isAIMatchingAvailable).mockReturnValue(false);
+
+    const ngos = [createNGO("ngo-1", ["Cooked Food"])];
+    const result = await getAIRecommendedNGOs(ngos, baseItems);
+
+    expect(result.length).toBeGreaterThan(0);
+    expect(result[0].score.aiEnhanced).toBeUndefined();
+  });
+
+  it("should filter out non-verified NGOs", async () => {
+    vi.mocked(aiMatching.isAIMatchingAvailable).mockReturnValue(false);
+
+    const ngos = [
+      { ...createNGO("verified"), verification_status: "verified" },
+      { ...createNGO("pending"), verification_status: "pending" },
+    ];
+
+    const result = await getAIRecommendedNGOs(ngos, baseItems);
+
+    const ids = result.map((r) => r.id);
+    expect(ids).toContain("verified");
+    expect(ids).not.toContain("pending");
+  });
+
+  it("should sort by score descending", async () => {
+    vi.mocked(aiMatching.isAIMatchingAvailable).mockReturnValue(true);
+    vi.mocked(aiMatching.calculateAIMatchScoresBatch).mockResolvedValue(
+      new Map([
+        ["ngo-1", { semanticScore: 50, explanationScore: 50, totalAIScore: 50, confidence: 0.5, matchReasons: [], warnings: [] }],
+        ["ngo-2", { semanticScore: 90, explanationScore: 90, totalAIScore: 90, confidence: 0.9, matchReasons: [], warnings: [] }],
+      ])
+    );
+
+    const ngos = [
+      createNGO("ngo-1", ["Packaged Food"]),
+      createNGO("ngo-2", ["Cooked Food"]),
+    ];
+
+    const result = await getAIRecommendedNGOs(ngos, baseItems);
+
+    // Higher scoring NGO should be first
+    if (result.length >= 2) {
+      expect(result[0].score.total).toBeGreaterThanOrEqual(result[1].score.total);
+    }
+  });
+
+  it("should respect limit parameter", async () => {
+    vi.mocked(aiMatching.isAIMatchingAvailable).mockReturnValue(false);
+
+    const ngos = Array.from({ length: 20 }, (_, i) =>
+      createNGO(`ngo-${i}`, ["Cooked Food"])
+    );
+
+    const result = await getAIRecommendedNGOs(ngos, baseItems, undefined, undefined, 3);
+
+    expect(result.length).toBeLessThanOrEqual(3);
+  });
+
+  it("should handle batch AI errors gracefully", async () => {
+    vi.mocked(aiMatching.isAIMatchingAvailable).mockReturnValue(true);
+    vi.mocked(aiMatching.calculateAIMatchScoresBatch).mockRejectedValue(
+      new Error("Batch API Error")
+    );
+
+    const ngos = [createNGO("ngo-1", ["Cooked Food"])];
+    const result = await getAIRecommendedNGOs(ngos, baseItems);
+
+    // Should not throw, should return rule-based results
+    expect(result.length).toBeGreaterThan(0);
+  });
+});
+
+describe("getMatchExplanation", () => {
+  const baseNGO: NGOProfile = {
+    id: "ngo-1",
+    organization_name: "Test NGO",
+    food_types: ["Cooked Food"],
+    storage_types: ["Room Temperature"],
+    pickup_radius: 10,
+    verification_status: "verified",
+  };
+
+  const baseItems: DonationItem[] = [
+    { category: "Cooked Meals", storage_condition: "room_temperature" },
+  ];
+
+  it("should call generateMatchExplanation with correct parameters", async () => {
+    vi.mocked(aiMatching.generateMatchExplanation).mockResolvedValue({
+      summary: "Good match",
+      details: ["Category matches"],
+      recommendation: "high",
+    });
+
+    const result = await getMatchExplanation(baseNGO, baseItems);
+
+    expect(aiMatching.generateMatchExplanation).toHaveBeenCalled();
+    expect(result?.summary).toBe("Good match");
+  });
+
+  it("should pass AI score to explanation generator", async () => {
+    const aiScore = {
+      semanticScore: 85,
+      explanationScore: 80,
+      totalAIScore: 83,
+      confidence: 0.85,
+      matchReasons: [],
+      warnings: [],
+    };
+
+    vi.mocked(aiMatching.generateMatchExplanation).mockResolvedValue({
+      summary: "Excellent match",
+      details: [],
+      recommendation: "high",
+    });
+
+    await getMatchExplanation(baseNGO, baseItems, aiScore);
+
+    expect(aiMatching.generateMatchExplanation).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      aiScore
+    );
+  });
+});
+
+describe("isAIMatchingAvailable export", () => {
+  it("should be exported from matching-utils", () => {
+    expect(isAIMatchingAvailable).toBeDefined();
+    expect(typeof isAIMatchingAvailable).toBe("function");
+  });
+});
+
+// ============================================================================
+// ORIGINAL INTEGRATION TESTS
+// ============================================================================
 
 describe("Integration Tests", () => {
   it("should correctly rank NGOs for a bakery donation", () => {

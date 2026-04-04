@@ -1,9 +1,19 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { motion } from "framer-motion";
-import { Building2, MapPin, CheckCircle2, Star, ThumbsUp, Truck } from "lucide-react";
-import { calculateDistance, calculateReverseMatchScore, formatDistance, type DonationItem, type NGOProfile, type ReverseMatchScore } from "@/lib/matching-utils";
+import { Building2, MapPin, CheckCircle2, Star, ThumbsUp, Truck, Sparkles, Brain } from "lucide-react";
+import {
+  calculateDistance,
+  calculateReverseMatchScore,
+  formatDistance,
+  isAIMatchingAvailable,
+  getAIRecommendedNGOs,
+  type DonationItem,
+  type NGOProfile,
+  type ReverseMatchScore
+} from "@/lib/matching-utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { logger } from "@/lib/logger";
 
 interface RecommendedNGOsProps {
@@ -149,43 +159,76 @@ const RecommendedNGOs = ({ items, vendorLat, vendorLng }: RecommendedNGOsProps) 
     filteredOut: ngoProfiles.length - ngosWithinRadius.length
   });
 
-  // Calculate match scores for NGOs within radius
-  logger.vendor.info("Calculating NGO match scores", {
-    validItems: validItems.length,
-    ngosInRadius: ngosWithinRadius.length,
-    items: validItems.map(i => ({ category: i.category, storage: i.storage_condition }))
+  // Check if AI matching is available
+  const aiEnabled = isAIMatchingAvailable();
+
+  // Calculate match scores using AI-enhanced matching if available
+  const {
+    data: recommended = [],
+    isLoading: isCalculatingScores
+  } = useQuery({
+    queryKey: ["ngo_match_scores", validItems, ngosWithinRadius.map(n => n.id), vendorLat, vendorLng, aiEnabled],
+    queryFn: async () => {
+      if (validItems.length === 0 || ngosWithinRadius.length === 0) {
+        return [];
+      }
+
+      logger.vendor.info("Calculating NGO match scores", {
+        validItems: validItems.length,
+        ngosInRadius: ngosWithinRadius.length,
+        aiEnabled,
+        items: validItems.map(i => ({ category: i.category, storage: i.storage_condition }))
+      });
+
+      // Use AI-enhanced matching if available, otherwise fall back to rule-based
+      if (aiEnabled) {
+        logger.vendor.info("Using AI-enhanced matching");
+        const aiRecommendations = await getAIRecommendedNGOs(
+          ngosWithinRadius,
+          validItems,
+          vendorLat,
+          vendorLng,
+          5
+        );
+        logger.vendor.info("AI matching complete", {
+          recommendedCount: aiRecommendations.length,
+          recommendations: aiRecommendations.map(r => ({
+            name: r.organization_name,
+            score: r.score.total,
+            aiEnhanced: r.score.aiEnhanced,
+            semanticScore: r.score.aiScore?.semanticScore
+          }))
+        });
+        return aiRecommendations;
+      }
+
+      // Fall back to rule-based matching
+      const ruleBasedRecommendations = ngosWithinRadius
+        .map(ngo => ({
+          ...ngo,
+          score: calculateReverseMatchScore(ngo, validItems, vendorLat, vendorLng),
+        }))
+        .filter(ngo => ngo.score.total >= 20)
+        .sort((a, b) => b.score.total - a.score.total)
+        .slice(0, 5);
+
+      logger.vendor.info("Rule-based matching complete", {
+        recommendedCount: ruleBasedRecommendations.length,
+        recommendations: ruleBasedRecommendations.map(r => ({
+          name: r.organization_name,
+          score: r.score.total,
+          distance: r.score.distance ? `${r.score.distance.toFixed(1)}km` : "N/A",
+          foodMatch: r.score.foodMatch,
+          storage: r.score.storage,
+          priority: r.score.priority
+        }))
+      });
+
+      return ruleBasedRecommendations;
+    },
+    enabled: validItems.length > 0 && ngosWithinRadius.length > 0,
+    staleTime: 30000, // Cache for 30 seconds
   });
-
-  let recommended: Array<NGOProfile & { score: ReverseMatchScore }> = [];
-
-  if (validItems.length > 0 && ngosWithinRadius.length > 0) {
-    recommended = ngosWithinRadius
-      .map(ngo => ({
-        ...ngo,
-        score: calculateReverseMatchScore(ngo, validItems, vendorLat, vendorLng),
-      }))
-      .filter(ngo => ngo.score.total >= 20) // Minimum threshold
-      .sort((a, b) => b.score.total - a.score.total)
-      .slice(0, 5); // Top 5
-
-    logger.vendor.info("NGO matching complete", {
-      recommendedCount: recommended.length,
-      recommendations: recommended.map(r => ({
-        name: r.organization_name,
-        score: r.score.total,
-        distance: r.score.distance ? `${r.score.distance.toFixed(1)}km` : "N/A",
-        foodMatch: r.score.foodMatch,
-        storage: r.score.storage,
-        priority: r.score.priority
-      }))
-    });
-  } else {
-    logger.vendor.warn("Cannot calculate NGO matches", {
-      reason: validItems.length === 0 ? "No valid items" : "No NGOs within radius",
-      validItems: validItems.length,
-      ngosInRadius: ngosWithinRadius.length
-    });
-  }
 
   // ============================================================================
   // RENDER
@@ -213,12 +256,18 @@ const RecommendedNGOs = ({ items, vendorLat, vendorLng }: RecommendedNGOsProps) 
     );
   }
 
-  if (isLoading) {
+  if (isLoading || isCalculatingScores) {
     return (
       <div className="rounded-xl border border-border bg-card p-4 shadow-card">
         <div className="flex items-center gap-2 mb-3">
-          <Star className="h-4 w-4 text-accent animate-pulse" />
-          <h3 className="text-sm font-semibold text-foreground">Finding Nearby NGOs...</h3>
+          {aiEnabled ? (
+            <Brain className="h-4 w-4 text-accent animate-pulse" />
+          ) : (
+            <Star className="h-4 w-4 text-accent animate-pulse" />
+          )}
+          <h3 className="text-sm font-semibold text-foreground">
+            {aiEnabled ? "AI Matching NGOs..." : "Finding Nearby NGOs..."}
+          </h3>
         </div>
         <div className="space-y-2">
           {[1, 2, 3].map((i) => (
@@ -243,15 +292,36 @@ const RecommendedNGOs = ({ items, vendorLat, vendorLng }: RecommendedNGOsProps) 
     );
   }
 
+  // Check if any recommendations used AI
+  const hasAIEnhanced = recommended.some(r => r.score.aiEnhanced);
+
   return (
-    <div className="rounded-xl border border-accent/30 bg-accent/5 p-4 shadow-card">
-      <div className="flex items-center gap-2 mb-3">
-        <Star className="h-4 w-4 text-accent" />
-        <h3 className="text-sm font-semibold text-foreground">Recommended NGOs</h3>
-        <span className="text-xs text-muted-foreground ml-auto">
-          Within {MAX_DISTANCE_KM}km
-        </span>
-      </div>
+    <TooltipProvider>
+      <div className="rounded-xl border border-accent/30 bg-accent/5 p-4 shadow-card">
+        <div className="flex items-center gap-2 mb-3">
+          {hasAIEnhanced ? (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="flex items-center gap-1.5">
+                  <Brain className="h-4 w-4 text-accent" />
+                  <Sparkles className="h-3 w-3 text-yellow-500" />
+                </div>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p className="text-xs">AI-Enhanced Matching</p>
+                <p className="text-xs text-muted-foreground">Using semantic understanding for better matches</p>
+              </TooltipContent>
+            </Tooltip>
+          ) : (
+            <Star className="h-4 w-4 text-accent" />
+          )}
+          <h3 className="text-sm font-semibold text-foreground">
+            {hasAIEnhanced ? "AI-Recommended NGOs" : "Recommended NGOs"}
+          </h3>
+          <span className="text-xs text-muted-foreground ml-auto">
+            Within {MAX_DISTANCE_KM}km
+          </span>
+        </div>
 
       <ScrollArea className="max-h-64">
         <div className="space-y-2">
@@ -308,9 +378,32 @@ const RecommendedNGOs = ({ items, vendorLat, vendorLng }: RecommendedNGOsProps) 
 
                   {/* Score breakdown */}
                   <div className="hidden sm:flex flex-col items-end text-[10px] text-muted-foreground">
-                    <span>Food: {ngo.score.foodMatch}/30</span>
-                    <span>Storage: {ngo.score.storage}/20</span>
-                    <span>Priority: {ngo.score.priority}/15</span>
+                    {ngo.score.aiEnhanced && ngo.score.aiScore ? (
+                      <>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="flex items-center gap-1 text-accent">
+                              <Sparkles className="h-2.5 w-2.5" />
+                              AI: {ngo.score.aiScore.semanticScore}%
+                            </span>
+                          </TooltipTrigger>
+                          <TooltipContent side="left">
+                            <p className="text-xs font-medium">AI Semantic Match</p>
+                            <p className="text-xs text-muted-foreground">
+                              Measures how well items match NGO preferences using AI understanding
+                            </p>
+                          </TooltipContent>
+                        </Tooltip>
+                        <span>Food: {ngo.score.foodMatch}/30</span>
+                        <span>Storage: {ngo.score.storage}/20</span>
+                      </>
+                    ) : (
+                      <>
+                        <span>Food: {ngo.score.foodMatch}/30</span>
+                        <span>Storage: {ngo.score.storage}/20</span>
+                        <span>Priority: {ngo.score.priority}/15</span>
+                      </>
+                    )}
                   </div>
                 </div>
               </motion.div>
@@ -320,9 +413,20 @@ const RecommendedNGOs = ({ items, vendorLat, vendorLng }: RecommendedNGOsProps) 
       </ScrollArea>
 
       <p className="text-xs text-muted-foreground mt-3 text-center">
-        Showing NGOs within {MAX_DISTANCE_KM}km, sorted by food preference and storage match.
+        {hasAIEnhanced ? (
+          <>
+            <span className="inline-flex items-center gap-1">
+              <Sparkles className="h-3 w-3 text-yellow-500" />
+              AI-powered semantic matching
+            </span>
+            {" "}within {MAX_DISTANCE_KM}km
+          </>
+        ) : (
+          <>Showing NGOs within {MAX_DISTANCE_KM}km, sorted by food preference and storage match.</>
+        )}
       </p>
     </div>
+    </TooltipProvider>
   );
 };
 

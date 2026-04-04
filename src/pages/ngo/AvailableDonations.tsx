@@ -416,9 +416,14 @@ const AvailableDonations = () => {
     const items = b.donation_items || [];
     const availableItems = items.filter((i: any) => i.status === "available");
     if (availableItems.length === 0) return false;
-    const matchesSearch = b.batch_number.toLowerCase().includes(search.toLowerCase()) ||
-      b.pickup_location.toLowerCase().includes(search.toLowerCase()) ||
-      items.some((i: any) => i.food_name.toLowerCase().includes(search.toLowerCase()));
+
+    const searchLower = search.toLowerCase();
+    const vendorName = (b.profiles?.business_name || b.profiles?.name || "").toLowerCase();
+
+    const matchesSearch = b.batch_number.toLowerCase().includes(searchLower) ||
+      b.pickup_location.toLowerCase().includes(searchLower) ||
+      vendorName.includes(searchLower) ||
+      items.some((i: any) => i.food_name.toLowerCase().includes(searchLower));
     const matchesCategory = categoryFilter === "all" || items.some((i: any) => i.category === categoryFilter && i.status === "available");
     const matchesHalal = halalFilter === "all" || items.some((i: any) => i.halal_status === halalFilter && i.status === "available");
     return matchesSearch && matchesCategory && matchesHalal;
@@ -708,7 +713,7 @@ const AvailableDonations = () => {
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center mb-6">
           <div className="relative flex-1">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input placeholder="Search..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-8 h-9 text-sm" />
+            <Input placeholder="Search by vendor, food, location..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-8 h-9 text-sm" />
           </div>
           <Select value={categoryFilter} onValueChange={setCategoryFilter}>
             <SelectTrigger className="w-40 h-9"><SelectValue placeholder="Category" /></SelectTrigger>
