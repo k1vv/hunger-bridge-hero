@@ -45,6 +45,7 @@ import {
   Store,
   Gift,
   ShoppingCart,
+  MapPin,
 } from "lucide-react";
 import { logger } from "@/lib/logger";
 
@@ -98,6 +99,7 @@ const NgoInventory = () => {
     quantity_remaining: "",
     expiry_date: "",
     storage_type: "Room Temperature",
+    storage_location: "", // Physical location (shelf, bin, etc.)
     condition: "Good",
     notes: "",
     source_type: "manual", // manual, donation, or purchase
@@ -162,6 +164,7 @@ const NgoInventory = () => {
         quantity_received: data.quantity_received,
         quantity_remaining: data.quantity_remaining || data.quantity_received,
         expiry_date: data.expiry_date || null,
+        storage_location: data.storage_location || null,
         notes: notesData,
       });
       if (error) throw error;
@@ -188,6 +191,7 @@ const NgoInventory = () => {
         quantity_received: data.quantity_received,
         quantity_remaining: data.quantity_remaining,
         expiry_date: data.expiry_date || null,
+        storage_location: data.storage_location || null,
       }).eq("id", id);
       if (error) throw error;
     },
@@ -254,6 +258,7 @@ const NgoInventory = () => {
       quantity_remaining: "",
       expiry_date: "",
       storage_type: "Room Temperature",
+      storage_location: "",
       condition: "Good",
       notes: "",
       source_type: "manual",
@@ -316,9 +321,10 @@ const NgoInventory = () => {
       quantity_received: item.quantity_received || "",
       quantity_remaining: item.quantity_remaining || "",
       expiry_date: item.expiry_date || "",
-      storage_type: "Room Temperature",
-      condition: "Good",
-      notes: "",
+      storage_type: sourceInfo.storageType || "Room Temperature",
+      storage_location: item.storage_location || "",
+      condition: sourceInfo.condition || "Good",
+      notes: sourceInfo.userNotes || "",
       source_type: sourceInfo.type,
       source_name: sourceInfo.name,
     });
@@ -576,6 +582,16 @@ const NgoInventory = () => {
                   </div>
                 </div>
 
+                <div className="space-y-2">
+                  <Label>Storage Location (Physical)</Label>
+                  <Input
+                    value={formData.storage_location}
+                    onChange={(e) => setFormData({ ...formData, storage_location: e.target.value })}
+                    placeholder="e.g. Shelf A-1, Bin 3, Freezer 2"
+                  />
+                  <p className="text-xs text-muted-foreground">Where is this item physically stored in your facility?</p>
+                </div>
+
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>Quantity Received *</Label>
@@ -707,6 +723,15 @@ const NgoInventory = () => {
               </div>
             </div>
 
+            <div className="space-y-2">
+              <Label>Storage Location (Physical)</Label>
+              <Input
+                value={formData.storage_location}
+                onChange={(e) => setFormData({ ...formData, storage_location: e.target.value })}
+                placeholder="e.g. Shelf A-1, Bin 3, Freezer 2"
+              />
+            </div>
+
             <Button
               onClick={() => updateItemMutation.mutate({ id: editingItem.id, data: formData })}
               disabled={!formData.food_title || updateItemMutation.isPending}
@@ -797,6 +822,11 @@ const NgoInventory = () => {
                         {sourceInfo.storageType && sourceInfo.storageType !== "Room Temperature" && (
                           <span className="flex items-center gap-1">
                             <Thermometer className="h-3 w-3" /> {sourceInfo.storageType}
+                          </span>
+                        )}
+                        {item.storage_location && (
+                          <span className="flex items-center gap-1">
+                            <MapPin className="h-3 w-3" /> {item.storage_location}
                           </span>
                         )}
                       </div>

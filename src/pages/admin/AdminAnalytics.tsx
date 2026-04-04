@@ -2,10 +2,13 @@ import PageLayout from "@/components/PageLayout";
 import StatCard from "@/components/StatCard";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
-import { UtensilsCrossed, TrendingDown, Truck, Recycle, Users, HandHeart, Package, Building2, Leaf, DollarSign, Utensils } from "lucide-react";
+import { UtensilsCrossed, TrendingDown, Truck, Recycle, Users, HandHeart, Package, Building2, Leaf, DollarSign, Utensils, Clock, Trash2, Download } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend, LineChart, Line, AreaChart, Area } from "recharts";
 import { motion } from "framer-motion";
 import { calculateFoodValue, calculateMealsServed, calculateCO2Saved, formatImpactValue } from "@/lib/impact-calculations";
+import { exportToCSV, donationExportColumns, impactExportColumns } from "@/lib/export-utils";
+import { Button } from "@/components/ui/button";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 const COLORS = ["hsl(var(--destructive))", "hsl(var(--accent))", "hsl(var(--info))", "hsl(var(--warning))", "hsl(var(--success))", "hsl(var(--muted-foreground))"];
 
@@ -96,6 +99,85 @@ const AdminAnalytics = () => {
     .reduce((sum: number, i: any) => sum + (parseFloat(i.quantity) || 0), 0);
 
   const claimRate = totalItems > 0 ? Math.round((completedItems / totalItems) * 100) : 0;
+
+  // Calculate time-to-pickup metrics
+  const pickupMetrics = (() => {
+    const completedWithTimes = items.filter((i: any) =>
+      i.status === "completed" && i.claimed_at && i.updated_at
+    );
+
+    if (completedWithTimes.length === 0) {
+      return { avgHours: 0, fastestHours: 0, slowestHours: 0, count: 0 };
+    }
+
+    const pickupTimes = completedWithTimes.map((item: any) => {
+      const claimedAt = new Date(item.claimed_at).getTime();
+      const completedAt = new Date(item.completed_at || item.updated_at).getTime();
+      return (completedAt - claimedAt) / (1000 * 60 * 60); // Hours
+    }).filter((h: number) => h > 0 && h < 168); // Filter outliers (> 7 days)
+
+    if (pickupTimes.length === 0) {
+      return { avgHours: 0, fastestHours: 0, slowestHours: 0, count: 0 };
+    }
+
+    const avgHours = pickupTimes.reduce((a: number, b: number) => a + b, 0) / pickupTimes.length;
+    const fastestHours = Math.min(...pickupTimes);
+    const slowestHours = Math.max(...pickupTimes);
+
+    return {
+      avgHours: Math.round(avgHours * 10) / 10,
+      fastestHours: Math.round(fastestHours * 10) / 10,
+      slowestHours: Math.round(slowestHours * 10) / 10,
+      count: pickupTimes.length,
+    };
+  })();
+
+  // Calculate waste analytics
+  const wasteAnalytics = (() => {
+    const wasteRecords = distributions.filter((d: any) =>
+      d.beneficiary_group?.startsWith("WASTE:")
+    );
+
+    const wasteByReason: Record<string, number> = {};
+    const wasteByCategory: Record<string, number> = {};
+    let totalWasteValue = 0;
+
+    wasteRecords.forEach((record: any) => {
+      const reason = record.beneficiary_group?.replace("WASTE: ", "") || "Unknown";
+      wasteByReason[reason] = (wasteByReason[reason] || 0) + 1;
+
+      // Parse items from notes if available
+      try {
+        const data = JSON.parse(record.notes || "{}");
+        if (data.items) {
+          data.items.forEach((item: any) => {
+            const cat = item.category || "Other";
+            wasteByCategory[cat] = (wasteByCategory[cat] || 0) + 1;
+            totalWasteValue += calculateFoodValue(
+              parseFloat(item.quantity) || 0,
+              item.unit || "kg",
+              cat
+            );
+          });
+        }
+      } catch {}
+    });
+
+    const wasteReasonData = Object.entries(wasteByReason)
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value);
+
+    const wasteCategoryData = Object.entries(wasteByCategory)
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value);
+
+    return {
+      totalRecords: wasteRecords.length,
+      totalValue: totalWasteValue,
+      byReason: wasteReasonData,
+      byCategory: wasteCategoryData,
+    };
+  })();
 
   // Calculate impact metrics using the impact-calculations library
   const impactMetrics = (() => {
@@ -213,8 +295,49 @@ const AdminAnalytics = () => {
     { name: "Expired", value: expiredItems, color: "hsl(var(--destructive))" },
   ].filter(s => s.value > 0);
 
+  // Export handlers
+  const handleExportDonations = () => {
+    exportToCSV(items, donationExportColumns, `donations-${new Date().toISOString().split("T")[0]}`);
+  };
+
+  const handleExportImpact = () => {
+    const impactData = [
+      { metric: "Total Donations", value: totalItems, unit: "items" },
+      { metric: "Completed", value: completedItems, unit: "items" },
+      { metric: "Success Rate", value: claimRate, unit: "%" },
+      { metric: "Food Value Saved", value: impactMetrics.completedValueRM.toFixed(2), unit: "RM" },
+      { metric: "Total Meals Served", value: impactMetrics.completedMeals, unit: "meals" },
+      { metric: "CO2 Prevented", value: impactMetrics.completedCO2Saved.toFixed(2), unit: "kg" },
+      { metric: "Beneficiaries", value: totalBeneficiaries, unit: "people" },
+      { metric: "Avg Pickup Time", value: pickupMetrics.avgHours, unit: "hours" },
+      { metric: "Waste Records", value: wasteAnalytics.totalRecords, unit: "records" },
+      { metric: "Value Lost to Waste", value: wasteAnalytics.totalValue.toFixed(2), unit: "RM" },
+    ];
+    exportToCSV(impactData, impactExportColumns, `impact-report-${new Date().toISOString().split("T")[0]}`);
+  };
+
   return (
     <PageLayout title="Analytics" subtitle="Comprehensive platform metrics and insights">
+      {/* Export Actions */}
+      <div className="flex justify-end mb-4">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" size="sm" className="gap-2">
+              <Download className="h-4 w-4" />
+              Export Report
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={handleExportDonations}>
+              Export Donations (CSV)
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={handleExportImpact}>
+              Export Impact Report (CSV)
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+
       {/* Primary Stats */}
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6 mb-6">
         <StatCard title="Total Donations" value={totalItems} icon={Package} variant="primary" />
@@ -339,6 +462,156 @@ const AdminAnalytics = () => {
           </motion.div>
         </div>
       </div>
+
+      {/* Time-to-Pickup Metrics */}
+      <div className="mb-6">
+        <h2 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
+          <Clock className="h-4 w-4 text-info" />
+          Pickup Performance Metrics
+        </h2>
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="rounded-xl border border-info/30 bg-info/5 p-4 shadow-card"
+          >
+            <div className="flex items-center gap-2 mb-1">
+              <Clock className="h-4 w-4 text-info" />
+              <p className="text-xs text-info">Avg Pickup Time</p>
+            </div>
+            <p className="text-xl font-bold text-info">
+              {pickupMetrics.avgHours > 0 ? `${pickupMetrics.avgHours}h` : "N/A"}
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">
+              from {pickupMetrics.count} pickups
+            </p>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.05 }}
+            className="rounded-xl border border-success/30 bg-success/5 p-4 shadow-card"
+          >
+            <div className="flex items-center gap-2 mb-1">
+              <Clock className="h-4 w-4 text-success" />
+              <p className="text-xs text-success">Fastest Pickup</p>
+            </div>
+            <p className="text-xl font-bold text-success">
+              {pickupMetrics.fastestHours > 0 ? `${pickupMetrics.fastestHours}h` : "N/A"}
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">
+              best response time
+            </p>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+            className="rounded-xl border border-warning/30 bg-warning/5 p-4 shadow-card"
+          >
+            <div className="flex items-center gap-2 mb-1">
+              <Clock className="h-4 w-4 text-warning" />
+              <p className="text-xs text-warning">Slowest Pickup</p>
+            </div>
+            <p className="text-xl font-bold text-warning">
+              {pickupMetrics.slowestHours > 0 ? `${pickupMetrics.slowestHours}h` : "N/A"}
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">
+              longest response
+            </p>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.15 }}
+            className="rounded-xl border border-border bg-card p-4 shadow-card"
+          >
+            <div className="flex items-center gap-2 mb-1">
+              <Truck className="h-4 w-4 text-muted-foreground" />
+              <p className="text-xs text-muted-foreground">Total Pickups</p>
+            </div>
+            <p className="text-xl font-bold text-foreground">{pickupMetrics.count}</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              completed pickups
+            </p>
+          </motion.div>
+        </div>
+      </div>
+
+      {/* Waste Analytics */}
+      {wasteAnalytics.totalRecords > 0 && (
+        <div className="mb-6">
+          <h2 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
+            <Trash2 className="h-4 w-4 text-destructive" />
+            Waste Analytics Dashboard
+          </h2>
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="rounded-xl border border-destructive/30 bg-destructive/5 p-4 shadow-card"
+            >
+              <div className="flex items-center gap-2 mb-3">
+                <Trash2 className="h-4 w-4 text-destructive" />
+                <p className="text-xs text-destructive font-medium">Waste Overview</p>
+              </div>
+              <div className="space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Total Waste Records</span>
+                  <span className="font-medium text-destructive">{wasteAnalytics.totalRecords}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Total Value Lost</span>
+                  <span className="font-medium text-destructive">
+                    {formatImpactValue(wasteAnalytics.totalValue, "currency")}
+                  </span>
+                </div>
+              </div>
+            </motion.div>
+
+            {wasteAnalytics.byReason.length > 0 && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1 }}
+                className="rounded-xl border border-border bg-card p-4 shadow-card"
+              >
+                <p className="text-xs font-medium text-foreground mb-3">Waste by Reason</p>
+                <div className="space-y-2">
+                  {wasteAnalytics.byReason.slice(0, 5).map((item, idx) => (
+                    <div key={idx} className="flex justify-between text-sm">
+                      <span className="text-muted-foreground truncate">{item.name}</span>
+                      <span className="font-medium">{item.value}</span>
+                    </div>
+                  ))}
+                </div>
+              </motion.div>
+            )}
+
+            {wasteAnalytics.byCategory.length > 0 && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2 }}
+                className="rounded-xl border border-border bg-card p-4 shadow-card"
+              >
+                <p className="text-xs font-medium text-foreground mb-3">Waste by Category</p>
+                <div className="space-y-2">
+                  {wasteAnalytics.byCategory.slice(0, 5).map((item, idx) => (
+                    <div key={idx} className="flex justify-between text-sm">
+                      <span className="text-muted-foreground truncate">{item.name}</span>
+                      <span className="font-medium">{item.value}</span>
+                    </div>
+                  ))}
+                </div>
+              </motion.div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Secondary Stats */}
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4 mb-6">

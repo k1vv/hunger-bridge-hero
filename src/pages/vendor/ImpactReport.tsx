@@ -4,8 +4,9 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
-import { CheckCircle, Package, TrendingUp, UtensilsCrossed } from "lucide-react";
+import { CheckCircle, Package, TrendingUp, UtensilsCrossed, DollarSign, Leaf, Utensils } from "lucide-react";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { calculateFoodValue, calculateMealsServed, calculateCO2Saved, formatImpactValue } from "@/lib/impact-calculations";
 
 const ImpactReport = () => {
   const { user } = useAuth();
@@ -47,15 +48,47 @@ const ImpactReport = () => {
   // 🔥 PROCESS DATA
   const allItems = batches.flatMap((b: any) => b.donation_items || []);
 
-  // For hackathon → treat all items as distributed
-  const completedItems = allItems;
+  // Items by status
+  const completedItems = allItems.filter((i: any) => i.status === "completed");
 
-  const totalQty = completedItems.reduce(
-    (sum: number, i: any) => sum + Number(i.quantity || 0),
-    0
-  );
+  // Calculate impact metrics using proper calculations
+  const impactMetrics = (() => {
+    let totalValueRM = 0;
+    let totalMeals = 0;
+    let totalCO2Saved = 0;
+    let completedValueRM = 0;
+    let completedMeals = 0;
+    let completedCO2Saved = 0;
 
-  const estimatedMeals = Math.round(totalQty * 2);
+    allItems.forEach((item: any) => {
+      const qty = parseFloat(item.quantity) || 0;
+      const unit = item.unit || "kg";
+      const category = item.category || "Other";
+
+      const value = calculateFoodValue(qty, unit, category);
+      const meals = calculateMealsServed(qty, unit, category);
+      const co2 = calculateCO2Saved(qty, unit, category);
+
+      totalValueRM += value;
+      totalMeals += meals;
+      totalCO2Saved += co2;
+
+      if (item.status === "completed") {
+        completedValueRM += value;
+        completedMeals += meals;
+        completedCO2Saved += co2;
+      }
+    });
+
+    return {
+      totalValueRM,
+      totalMeals,
+      totalCO2Saved,
+      completedValueRM,
+      completedMeals,
+      completedCO2Saved,
+    };
+  })();
 
   // 🔥 MONTHLY DATA FOR CHART
   const monthlyData = batches.reduce((acc: any[], b: any) => {
@@ -94,7 +127,7 @@ const ImpactReport = () => {
       )}
 
       {/* 🔥 STATS */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-8">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-6">
         <StatCard
           title="Total Batches"
           value={batches.length}
@@ -108,17 +141,73 @@ const ImpactReport = () => {
           variant="accent"
         />
         <StatCard
-          title="Items Distributed"
+          title="Items Completed"
           value={completedItems.length}
           icon={CheckCircle}
           variant="success"
         />
         <StatCard
           title="Est. Meals"
-          value={estimatedMeals}
-          icon={TrendingUp}
+          value={impactMetrics.totalMeals}
+          icon={Utensils}
           variant="default"
         />
+      </div>
+
+      {/* 🔥 IMPACT METRICS */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 mb-8">
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="rounded-xl border border-success/30 bg-success/5 p-5 shadow-card"
+        >
+          <div className="flex items-center gap-2 mb-2">
+            <DollarSign className="h-5 w-5 text-success" />
+            <p className="text-sm font-medium text-success">Food Value Saved</p>
+          </div>
+          <p className="text-2xl font-bold text-success">
+            {formatImpactValue(impactMetrics.completedValueRM, "currency")}
+          </p>
+          <p className="text-xs text-muted-foreground mt-1">
+            of {formatImpactValue(impactMetrics.totalValueRM, "currency")} total donated
+          </p>
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="rounded-xl border border-accent/30 bg-accent/5 p-5 shadow-card"
+        >
+          <div className="flex items-center gap-2 mb-2">
+            <Utensils className="h-5 w-5 text-accent" />
+            <p className="text-sm font-medium text-accent">Meals Provided</p>
+          </div>
+          <p className="text-2xl font-bold text-accent">
+            {impactMetrics.completedMeals.toLocaleString()}
+          </p>
+          <p className="text-xs text-muted-foreground mt-1">
+            of {impactMetrics.totalMeals.toLocaleString()} potential meals
+          </p>
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="rounded-xl border border-info/30 bg-info/5 p-5 shadow-card"
+        >
+          <div className="flex items-center gap-2 mb-2">
+            <Leaf className="h-5 w-5 text-info" />
+            <p className="text-sm font-medium text-info">CO₂ Emissions Prevented</p>
+          </div>
+          <p className="text-2xl font-bold text-info">
+            {formatImpactValue(impactMetrics.completedCO2Saved, "co2")}
+          </p>
+          <p className="text-xs text-muted-foreground mt-1">
+            of {formatImpactValue(impactMetrics.totalCO2Saved, "co2")} potential
+          </p>
+        </motion.div>
       </div>
 
       {/* 🔥 CHART */}

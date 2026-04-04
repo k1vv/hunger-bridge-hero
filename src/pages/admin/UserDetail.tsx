@@ -17,7 +17,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { ArrowLeft, Mail, Phone, Building, MapPin, Clock, Utensils, Warehouse, Globe, CheckCircle, XCircle, AlertCircle, FileText, Store, Users } from "lucide-react";
+import { ArrowLeft, Mail, Phone, Building, MapPin, Clock, Utensils, Warehouse, Globe, CheckCircle, XCircle, AlertCircle, FileText, Store, Users, Ban, ShieldCheck } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { notifyUserOfVerificationStatus } from "@/lib/notifications";
@@ -30,6 +30,8 @@ const UserDetail = () => {
   const { user } = useAuth();
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
   const [rejectionReason, setRejectionReason] = useState("");
+  const [suspendDialogOpen, setSuspendDialogOpen] = useState(false);
+  const [suspensionReason, setSuspensionReason] = useState("");
 
   const { data: profile, isLoading: profileLoading } = useQuery({
     queryKey: ["admin_user_detail", id],
@@ -129,6 +131,54 @@ const UserDetail = () => {
     },
     onError: (err: any) => toast.error(err.message),
   });
+
+  // Suspension mutation
+  const updateSuspension = useMutation({
+    mutationFn: async ({ suspended, reason }: { suspended: boolean; reason?: string }) => {
+      const updateData: any = {
+        is_suspended: suspended,
+        suspended_at: suspended ? new Date().toISOString() : null,
+        suspension_reason: suspended ? reason : null,
+      };
+
+      const { error } = await supabase
+        .from("profiles")
+        .update(updateData)
+        .eq("id", id!);
+
+      if (error) throw error;
+
+      // Create notification for the user
+      await supabase.from("notifications").insert({
+        user_id: id!,
+        type: suspended ? "account_suspended" : "account_unsuspended",
+        title: suspended ? "Account Suspended" : "Account Unsuspended",
+        message: suspended
+          ? `Your account has been suspended. Reason: ${reason || "Policy violation"}`
+          : "Your account has been unsuspended. You can now access all features.",
+      });
+    },
+    onSuccess: (_, { suspended }) => {
+      toast.success(suspended ? "User suspended" : "User unsuspended");
+      queryClient.invalidateQueries({ queryKey: ["admin_user_detail", id] });
+      queryClient.invalidateQueries({ queryKey: ["admin_users"] });
+      setSuspendDialogOpen(false);
+      setSuspensionReason("");
+    },
+    onError: (err: any) => toast.error(err.message),
+  });
+
+  const handleSuspend = () => {
+    if (!suspensionReason.trim()) {
+      toast.error("Please provide a reason for suspension");
+      return;
+    }
+    updateSuspension.mutate({ suspended: true, reason: suspensionReason });
+  };
+
+  const handleUnsuspend = () => {
+    updateSuspension.mutate({ suspended: false });
+  };
 
   const handleApprove = () => {
     updateVerification.mutate({ status: "verified" });
@@ -238,6 +288,41 @@ const UserDetail = () => {
         </DialogContent>
       </Dialog>
 
+      {/* Suspension Dialog */}
+      <Dialog open={suspendDialogOpen} onOpenChange={setSuspendDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Suspend User Account</DialogTitle>
+            <DialogDescription>
+              Suspending this account will prevent {profile?.name || profile?.business_name} from accessing platform features.
+              Please provide a reason for the suspension.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="suspension-reason">Suspension Reason *</Label>
+            <Textarea
+              id="suspension-reason"
+              value={suspensionReason}
+              onChange={(e) => setSuspensionReason(e.target.value)}
+              placeholder="e.g. Multiple policy violations, Fraudulent activity, Repeated complaints..."
+              rows={3}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSuspendDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleSuspend}
+              disabled={updateSuspension.isPending}
+            >
+              {updateSuspension.isPending ? "Suspending..." : "Suspend User"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
     <PageLayout title="User Details" subtitle={profile.name || profile.business_name || "Unknown User"}>
       <Button
         variant="ghost"
@@ -337,6 +422,67 @@ const UserDetail = () => {
               >
                 <XCircle className="h-4 w-4 mr-2" />
                 Revoke Verification
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Suspension Status Card */}
+      {profile.is_suspended && (
+        <Card className="mb-6 border-destructive bg-destructive/10">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-destructive/20">
+                  <Ban className="h-5 w-5 text-destructive" />
+                </div>
+                <div>
+                  <p className="font-semibold text-destructive">Account Suspended</p>
+                  <p className="text-sm text-muted-foreground">
+                    {profile.suspension_reason || "No reason provided"}
+                  </p>
+                  {profile.suspended_at && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Suspended on {new Date(profile.suspended_at).toLocaleDateString()}
+                    </p>
+                  )}
+                </div>
+              </div>
+              <Button
+                onClick={handleUnsuspend}
+                disabled={updateSuspension.isPending}
+                className="bg-success hover:bg-success/90"
+              >
+                <ShieldCheck className="h-4 w-4 mr-2" />
+                {updateSuspension.isPending ? "Unsuspending..." : "Unsuspend User"}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Suspend Button for non-suspended users */}
+      {!profile.is_suspended && profile.verification_status !== "pending" && (
+        <Card className="mb-6 border-border">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted">
+                  <ShieldCheck className="h-5 w-5 text-muted-foreground" />
+                </div>
+                <div>
+                  <p className="font-medium text-foreground">Account Active</p>
+                  <p className="text-sm text-muted-foreground">This account is active. You can suspend it if needed.</p>
+                </div>
+              </div>
+              <Button
+                variant="outline"
+                onClick={() => setSuspendDialogOpen(true)}
+                className="border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground"
+              >
+                <Ban className="h-4 w-4 mr-2" />
+                Suspend User
               </Button>
             </div>
           </CardContent>

@@ -9,7 +9,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { CheckCircle, XCircle, Search, Mail, Phone, Building, MapPin } from "lucide-react";
+import { CheckCircle, XCircle, Search, Mail, Phone, Building, MapPin, Ban, Users, CheckSquare, Square } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { motion } from "framer-motion";
 import { logger } from "@/lib/logger";
 import { fetchProfilesWithRoles } from "@/lib/admin-queries";
@@ -23,6 +24,8 @@ const UserManagement = () => {
   const [roleFilter, setRoleFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
   const [search, setSearch] = useState("");
+  const [selectedUsers, setSelectedUsers] = useState<Set<string>>(new Set());
+  const [bulkProcessing, setBulkProcessing] = useState(false);
 
   const { data: users = [], isLoading } = useQuery({
     queryKey: ["admin_users"],
@@ -62,6 +65,92 @@ const UserManagement = () => {
     },
     onError: (err: any) => toast.error(err.message),
   });
+
+  // Bulk operations
+  const handleBulkAction = async (action: "verify" | "reject" | "suspend") => {
+    if (selectedUsers.size === 0) {
+      toast.error("No users selected");
+      return;
+    }
+
+    setBulkProcessing(true);
+    const userIds = Array.from(selectedUsers);
+    let successCount = 0;
+    let errorCount = 0;
+
+    for (const userId of userIds) {
+      try {
+        if (action === "suspend") {
+          // Suspend user
+          const { error } = await supabase
+            .from("profiles")
+            .update({
+              is_suspended: true,
+              suspended_at: new Date().toISOString(),
+              suspension_reason: "Bulk suspension by admin",
+            })
+            .eq("id", userId);
+
+          if (error) throw error;
+
+          // Notify user
+          await supabase.from("notifications").insert({
+            user_id: userId,
+            type: "account_suspended",
+            title: "Account Suspended",
+            message: "Your account has been suspended. Please contact support for more information.",
+          });
+        } else {
+          // Verify or reject
+          const status = action === "verify" ? "verified" : "rejected";
+          const { error } = await supabase
+            .from("profiles")
+            .update({ verification_status: status })
+            .eq("id", userId);
+
+          if (error) throw error;
+
+          // Notify user
+          const targetUser = users.find((u: any) => u.id === userId);
+          await notifyUserOfVerificationStatus(userId, status, targetUser?.name || targetUser?.business_name);
+        }
+        successCount++;
+      } catch (err) {
+        errorCount++;
+        console.error(`Failed to ${action} user ${userId}:`, err);
+      }
+    }
+
+    setBulkProcessing(false);
+    setSelectedUsers(new Set());
+    queryClient.invalidateQueries({ queryKey: ["admin_users"] });
+
+    if (successCount > 0) {
+      const actionText = action === "verify" ? "verified" : action === "reject" ? "rejected" : "suspended";
+      toast.success(`${successCount} user(s) ${actionText} successfully`);
+    }
+    if (errorCount > 0) {
+      toast.error(`Failed to process ${errorCount} user(s)`);
+    }
+  };
+
+  const toggleUserSelection = (userId: string) => {
+    const newSelection = new Set(selectedUsers);
+    if (newSelection.has(userId)) {
+      newSelection.delete(userId);
+    } else {
+      newSelection.add(userId);
+    }
+    setSelectedUsers(newSelection);
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedUsers.size === filtered.length) {
+      setSelectedUsers(new Set());
+    } else {
+      setSelectedUsers(new Set(filtered.map((u: any) => u.id)));
+    }
+  };
 
   const filtered = users.filter((u: any) => {
     const matchesRole = roleFilter === "all" || u.user_roles?.some((r: any) => r.role === roleFilter);
@@ -112,6 +201,62 @@ const UserManagement = () => {
         </motion.div>
       )}
 
+      {/* Bulk Actions Bar */}
+      {selectedUsers.size > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mb-6 flex items-center gap-3 rounded-lg border border-accent/30 bg-accent/5 p-3"
+        >
+          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-accent/10">
+            <Users className="h-4 w-4 text-accent" />
+          </div>
+          <p className="text-sm text-accent">
+            <strong>{selectedUsers.size}</strong> user(s) selected
+          </p>
+          <div className="ml-auto flex items-center gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              className="bg-success/10 text-success border-success/30 hover:bg-success hover:text-success-foreground"
+              onClick={() => handleBulkAction("verify")}
+              disabled={bulkProcessing}
+            >
+              <CheckCircle className="h-4 w-4 mr-1" />
+              Bulk Approve
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="bg-destructive/10 text-destructive border-destructive/30 hover:bg-destructive hover:text-destructive-foreground"
+              onClick={() => handleBulkAction("reject")}
+              disabled={bulkProcessing}
+            >
+              <XCircle className="h-4 w-4 mr-1" />
+              Bulk Reject
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="bg-warning/10 text-warning border-warning/30 hover:bg-warning hover:text-warning-foreground"
+              onClick={() => handleBulkAction("suspend")}
+              disabled={bulkProcessing}
+            >
+              <Ban className="h-4 w-4 mr-1" />
+              Bulk Suspend
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => setSelectedUsers(new Set())}
+              disabled={bulkProcessing}
+            >
+              Clear Selection
+            </Button>
+          </div>
+        </motion.div>
+      )}
+
       {/* Filters */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center mb-6">
         <div className="flex items-center gap-3">
@@ -157,6 +302,13 @@ const UserManagement = () => {
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead className="w-[40px]">
+                <Checkbox
+                  checked={filtered.length > 0 && selectedUsers.size === filtered.length}
+                  onCheckedChange={toggleSelectAll}
+                  aria-label="Select all"
+                />
+              </TableHead>
               <TableHead className="text-xs">User</TableHead>
               <TableHead className="text-xs">Contact</TableHead>
               <TableHead className="text-xs">Role</TableHead>
@@ -168,19 +320,26 @@ const UserManagement = () => {
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center py-8 text-sm text-muted-foreground">
+                <TableCell colSpan={7} className="text-center py-8 text-sm text-muted-foreground">
                   Loading users...
                 </TableCell>
               </TableRow>
             ) : filtered.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center py-8 text-sm text-muted-foreground">
+                <TableCell colSpan={7} className="text-center py-8 text-sm text-muted-foreground">
                   No users found
                 </TableCell>
               </TableRow>
             ) : (
               filtered.map((u: any) => (
                 <TableRow key={u.id} className="cursor-pointer hover:bg-muted/50" onClick={() => navigate(`/admin/users/${u.id}`)}>
+                  <TableCell onClick={(e) => e.stopPropagation()}>
+                    <Checkbox
+                      checked={selectedUsers.has(u.id)}
+                      onCheckedChange={() => toggleUserSelection(u.id)}
+                      aria-label={`Select ${u.name || u.business_name}`}
+                    />
+                  </TableCell>
                   <TableCell>
                     <div>
                       <p className="text-sm font-medium text-foreground">{u.name || "-"}</p>

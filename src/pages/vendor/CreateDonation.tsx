@@ -16,6 +16,8 @@ import { ImagePlus, X, Plus, Trash2, Package, ChevronRight } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion";
 import { logger } from "@/lib/logger";
 import { notifyNgosOfNewDonation } from "@/lib/notifications";
+import RecommendedNGOs from "@/components/vendor/RecommendedNGOs";
+import DonationTemplates, { type DonationTemplate, type TemplateItem } from "@/components/vendor/DonationTemplates";
 
 interface FoodItem {
   id: string;
@@ -116,6 +118,44 @@ const CreateDonation = () => {
       if (!item.expiryDate) { toast.error(`Item ${i + 1}: Expiry date is required`); return false; }
     }
     return true;
+  };
+
+  const handleSelectTemplate = (template: DonationTemplate) => {
+    // Load location
+    if (template.pickup_location) {
+      setPickupLocation({
+        address: template.pickup_location,
+        lat: template.pickup_lat || null,
+        lng: template.pickup_lng || null,
+      });
+    }
+
+    // Load time window
+    if (template.pickup_time_start) setPickupTimeStart(template.pickup_time_start);
+    if (template.pickup_time_end) setPickupTimeEnd(template.pickup_time_end);
+
+    // Load contact info
+    if (template.contact_person) setContactPerson(template.contact_person);
+    if (template.contact_phone) setContactPhone(template.contact_phone);
+
+    // Load items
+    if (template.items && template.items.length > 0) {
+      const newItems: FoodItem[] = template.items.map((item: TemplateItem) => ({
+        id: crypto.randomUUID(),
+        foodName: item.foodName,
+        category: item.category,
+        quantity: item.quantity,
+        unit: item.unit || "packs",
+        expiryDate: "", // Don't copy expiry date from template
+        expiryTime: "",
+        storageCondition: item.storageCondition || "room_temperature",
+        halalStatus: item.halalStatus || "unknown",
+        imageFile: null,
+        imagePreview: null,
+        notes: "",
+      }));
+      setItems(newItems);
+    }
   };
 
   const handleCreate = async (e: React.FormEvent) => {
@@ -229,6 +269,24 @@ const CreateDonation = () => {
   return (
     <PageLayout title="Create Donation" subtitle="Add a donation batch with multiple food items">
       <div className="max-w-3xl">
+        {/* Donation Templates */}
+        <DonationTemplates
+          onSelectTemplate={handleSelectTemplate}
+          currentItems={items.filter(i => i.foodName).map(i => ({
+            foodName: i.foodName,
+            category: i.category,
+            quantity: i.quantity,
+            unit: i.unit,
+            storageCondition: i.storageCondition,
+            halalStatus: i.halalStatus,
+          }))}
+          currentLocation={pickupLocation}
+          currentPickupTimeStart={pickupTimeStart}
+          currentPickupTimeEnd={pickupTimeEnd}
+          currentContactPerson={contactPerson}
+          currentContactPhone={contactPhone}
+        />
+
         <form onSubmit={handleCreate} className="space-y-6">
           {/* Section A: Donation Information */}
           <div className="rounded-xl border border-border bg-card p-6 shadow-card space-y-4">
@@ -413,6 +471,19 @@ const CreateDonation = () => {
               <Plus className="h-4 w-4 mr-2" /> Add Another Food Item
             </Button>
           </div>
+
+          {/* Recommended NGOs */}
+          <RecommendedNGOs
+            items={items.map(item => ({
+              category: item.category,
+              storage_condition: item.storageCondition,
+              quantity: parseFloat(item.quantity) || 0,
+              unit: item.unit,
+              halal_status: item.halalStatus,
+            }))}
+            vendorLat={pickupLocation.lat ?? undefined}
+            vendorLng={pickupLocation.lng ?? undefined}
+          />
 
           {/* Summary & Submit */}
           <div className="rounded-xl border border-primary/20 bg-primary/5 p-4">

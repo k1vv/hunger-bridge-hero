@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import PageLayout from "@/components/PageLayout";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -33,6 +33,9 @@ import {
   User,
   Info,
   Trash2,
+  ImagePlus,
+  X,
+  Image,
 } from "lucide-react";
 import { logger } from "@/lib/logger";
 
@@ -117,6 +120,8 @@ const Distribution = () => {
   const [notes, setNotes] = useState("");
   const [selectedItems, setSelectedItems] = useState<SelectedItem[]>([]);
   const [step, setStep] = useState(1); // Multi-step form
+  const [photos, setPhotos] = useState<{ file: File; preview: string }[]>([]);
+  const photoInputRef = useRef<HTMLInputElement>(null);
 
   // ============================================================================
   // QUERIES
@@ -275,6 +280,25 @@ const Distribution = () => {
         throw new Error("Please select at least one item to distribute");
       }
 
+      // Upload photos if any
+      const photoUrls: string[] = [];
+      for (const photo of photos) {
+        const ext = photo.file.name.split(".").pop();
+        const path = `distributions/${user!.id}/${crypto.randomUUID()}.${ext}`;
+        const { error: uploadError } = await supabase.storage
+          .from("distribution-photos")
+          .upload(path, photo.file);
+
+        if (!uploadError) {
+          const { data: urlData } = supabase.storage
+            .from("distribution-photos")
+            .getPublicUrl(path);
+          photoUrls.push(urlData.publicUrl);
+        } else {
+          logger.ngo.error("Failed to upload photo", uploadError.message, {}, user?.id);
+        }
+      }
+
       // Build distribution data
       const distributionData = {
         distribution_type: distributionType,
@@ -298,6 +322,7 @@ const Distribution = () => {
         beneficiary_group: beneficiaryType || "General Distribution",
         quantity_distributed: selectedItems.reduce((sum, s) => sum + s.quantity, 0).toString(),
         distribution_date: distributionDate,
+        photo_urls: photoUrls.length > 0 ? photoUrls : null,
         notes: JSON.stringify(distributionData),
       });
 
@@ -348,7 +373,32 @@ const Distribution = () => {
     setBeneficiaryCount("");
     setNotes("");
     setSelectedItems([]);
+    setPhotos([]);
     setStep(1);
+  };
+
+  const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files) return;
+
+    const newPhotos: { file: File; preview: string }[] = [];
+    for (let i = 0; i < files.length && photos.length + newPhotos.length < 5; i++) {
+      const file = files[i];
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error(`${file.name} is too large. Max 5MB.`);
+        continue;
+      }
+      newPhotos.push({ file, preview: URL.createObjectURL(file) });
+    }
+    setPhotos([...photos, ...newPhotos]);
+    if (photoInputRef.current) photoInputRef.current.value = "";
+  };
+
+  const removePhoto = (index: number) => {
+    const newPhotos = [...photos];
+    URL.revokeObjectURL(newPhotos[index].preview);
+    newPhotos.splice(index, 1);
+    setPhotos(newPhotos);
   };
 
   const addItem = (item: any) => {
@@ -788,6 +838,49 @@ const Distribution = () => {
                 />
               </div>
 
+              {/* Distribution Photos */}
+              <div className="space-y-2">
+                <Label>Photos (Optional)</Label>
+                <p className="text-xs text-muted-foreground mb-2">
+                  Add photos of the distribution event. Max 5 photos, 5MB each.
+                </p>
+
+                <div className="flex flex-wrap gap-2">
+                  {photos.map((photo, index) => (
+                    <div key={index} className="relative rounded-lg overflow-hidden border border-border h-20 w-20">
+                      <img src={photo.preview} alt="" className="w-full h-full object-cover" />
+                      <button
+                        type="button"
+                        onClick={() => removePhoto(index)}
+                        className="absolute top-1 right-1 rounded-full bg-background/80 p-0.5 hover:bg-destructive hover:text-destructive-foreground"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </div>
+                  ))}
+
+                  {photos.length < 5 && (
+                    <button
+                      type="button"
+                      onClick={() => photoInputRef.current?.click()}
+                      className="h-20 w-20 rounded-lg border border-dashed border-border hover:border-primary/50 transition-colors flex flex-col items-center justify-center gap-1 text-muted-foreground text-xs"
+                    >
+                      <ImagePlus className="h-5 w-5" />
+                      Add photo
+                    </button>
+                  )}
+                </div>
+
+                <input
+                  ref={photoInputRef}
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  onChange={handlePhotoSelect}
+                  className="hidden"
+                />
+              </div>
+
               <div className="flex justify-end">
                 <Button onClick={() => setStep(2)}>
                   Next: Select Items <ChevronRight className="h-4 w-4 ml-1" />
@@ -1132,6 +1225,28 @@ const Distribution = () => {
                   <div className="border-t pt-3">
                     <p className="text-sm font-medium mb-1">Notes</p>
                     <p className="text-sm text-muted-foreground">{data.user_notes}</p>
+                  </div>
+                )}
+
+                {/* Photos */}
+                {selectedRecord.photo_urls && selectedRecord.photo_urls.length > 0 && (
+                  <div className="border-t pt-3">
+                    <p className="text-sm font-medium mb-2 flex items-center gap-2">
+                      <Image className="h-4 w-4" /> Distribution Photos
+                    </p>
+                    <div className="grid grid-cols-3 gap-2">
+                      {selectedRecord.photo_urls.map((url: string, idx: number) => (
+                        <a
+                          key={idx}
+                          href={url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="block rounded-lg overflow-hidden border border-border aspect-square"
+                        >
+                          <img src={url} alt={`Distribution photo ${idx + 1}`} className="w-full h-full object-cover" />
+                        </a>
+                      ))}
+                    </div>
                   </div>
                 )}
               </div>
