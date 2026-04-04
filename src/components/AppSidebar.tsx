@@ -48,7 +48,7 @@ const ngoNav: NavItem[] = [
 ];
 
 const adminNav: NavItem[] = [
-  { label: "Dashboard", icon: LayoutDashboard, path: "/" },
+  { label: "Dashboard", icon: LayoutDashboard, path: "/dashboard" },
   { label: "Users", icon: UsersIcon, path: "/admin/users" },
   { label: "Donations", icon: UtensilsCrossed, path: "/admin/donations" },
   { label: "Claims Monitoring", icon: Eye, path: "/admin/claims" },
