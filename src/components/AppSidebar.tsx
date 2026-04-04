@@ -20,6 +20,7 @@ import {
   HandHeart,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import foodbridgeLogoNgo from "@/assets/foodbridge-logo-ngo.jpeg";
 
 type NavItem = { label: string; icon: any; path: string };
 
