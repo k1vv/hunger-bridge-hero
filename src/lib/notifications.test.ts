@@ -234,15 +234,12 @@ describe("Notifications", () => {
         "item-id-123"
       );
 
-      expect(mockInsert).toHaveBeenCalledWith(
-        expect.objectContaining({
-          type: "claim_cancelled",
-          title: "Claim Cancelled",
-          message: expect.stringContaining("Food Bank NGO has cancelled their claim"),
-          message: expect.stringContaining("Rice"),
-          message: expect.stringContaining("BATCH-001"),
-        })
-      );
+      const callArg = mockInsert.mock.calls[0][0];
+      expect(callArg.type).toBe("claim_cancelled");
+      expect(callArg.title).toBe("Claim Cancelled");
+      expect(callArg.message).toContain("Food Bank NGO has cancelled their claim");
+      expect(callArg.message).toContain("Rice");
+      expect(callArg.message).toContain("BATCH-001");
     });
   });
 
