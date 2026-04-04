@@ -77,6 +77,117 @@ export type Database = {
         }
         Relationships: []
       }
+      beneficiaries: {
+        Row: {
+          address: string | null
+          category: string | null
+          created_at: string | null
+          household_size: number | null
+          id: string
+          is_active: boolean | null
+          name: string
+          ngo_id: string
+          notes: string | null
+          phone: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          address?: string | null
+          category?: string | null
+          created_at?: string | null
+          household_size?: number | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          ngo_id: string
+          notes?: string | null
+          phone?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          address?: string | null
+          category?: string | null
+          created_at?: string | null
+          household_size?: number | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          ngo_id?: string
+          notes?: string | null
+          phone?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "beneficiaries_ngo_id_fkey"
+            columns: ["ngo_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      claim_cancellations: {
+        Row: {
+          batch_id: string
+          cancelled_at: string | null
+          category: string | null
+          food_name: string
+          id: string
+          item_id: string
+          ngo_id: string
+          quantity: number | null
+          reason: string | null
+          unit: string | null
+        }
+        Insert: {
+          batch_id: string
+          cancelled_at?: string | null
+          category?: string | null
+          food_name: string
+          id?: string
+          item_id: string
+          ngo_id: string
+          quantity?: number | null
+          reason?: string | null
+          unit?: string | null
+        }
+        Update: {
+          batch_id?: string
+          cancelled_at?: string | null
+          category?: string | null
+          food_name?: string
+          id?: string
+          item_id?: string
+          ngo_id?: string
+          quantity?: number | null
+          reason?: string | null
+          unit?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "claim_cancellations_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "donation_batches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "claim_cancellations_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "donation_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "claim_cancellations_ngo_id_fkey"
+            columns: ["ngo_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       claims: {
         Row: {
           created_at: string
@@ -124,67 +235,6 @@ export type Database = {
           },
         ]
       }
-      claim_cancellations: {
-        Row: {
-          id: string
-          item_id: string
-          batch_id: string
-          ngo_id: string
-          food_name: string
-          quantity: number | null
-          unit: string | null
-          category: string | null
-          cancelled_at: string
-          reason: string | null
-        }
-        Insert: {
-          id?: string
-          item_id: string
-          batch_id: string
-          ngo_id: string
-          food_name: string
-          quantity?: number | null
-          unit?: string | null
-          category?: string | null
-          cancelled_at?: string
-          reason?: string | null
-        }
-        Update: {
-          id?: string
-          item_id?: string
-          batch_id?: string
-          ngo_id?: string
-          food_name?: string
-          quantity?: number | null
-          unit?: string | null
-          category?: string | null
-          cancelled_at?: string
-          reason?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "claim_cancellations_item_id_fkey"
-            columns: ["item_id"]
-            isOneToOne: false
-            referencedRelation: "donation_items"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "claim_cancellations_batch_id_fkey"
-            columns: ["batch_id"]
-            isOneToOne: false
-            referencedRelation: "donation_batches"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "claim_cancellations_ngo_id_fkey"
-            columns: ["ngo_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          }
-        ]
-      }
       complaints: {
         Row: {
           complaint_type: string
@@ -230,43 +280,108 @@ export type Database = {
         }
         Relationships: []
       }
+      distribution_beneficiaries: {
+        Row: {
+          beneficiary_id: string
+          created_at: string | null
+          distribution_id: string
+          id: string
+          items_received: Json | null
+          notes: string | null
+        }
+        Insert: {
+          beneficiary_id: string
+          created_at?: string | null
+          distribution_id: string
+          id?: string
+          items_received?: Json | null
+          notes?: string | null
+        }
+        Update: {
+          beneficiary_id?: string
+          created_at?: string | null
+          distribution_id?: string
+          id?: string
+          items_received?: Json | null
+          notes?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "distribution_beneficiaries_beneficiary_id_fkey"
+            columns: ["beneficiary_id"]
+            isOneToOne: false
+            referencedRelation: "beneficiaries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "distribution_beneficiaries_distribution_id_fkey"
+            columns: ["distribution_id"]
+            isOneToOne: false
+            referencedRelation: "distribution_records"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       distribution_records: {
         Row: {
           beneficiary_group: string | null
+          beneficiary_id: string | null
           claim_id: string | null
           created_at: string
           distribution_date: string
           id: string
+          inventory_id: string | null
           ngo_user_id: string
           notes: string | null
+          photo_urls: string[] | null
           quantity_distributed: string | null
         }
         Insert: {
           beneficiary_group?: string | null
+          beneficiary_id?: string | null
           claim_id?: string | null
           created_at?: string
           distribution_date?: string
           id?: string
+          inventory_id?: string | null
           ngo_user_id: string
           notes?: string | null
+          photo_urls?: string[] | null
           quantity_distributed?: string | null
         }
         Update: {
           beneficiary_group?: string | null
+          beneficiary_id?: string | null
           claim_id?: string | null
           created_at?: string
           distribution_date?: string
           id?: string
+          inventory_id?: string | null
           ngo_user_id?: string
           notes?: string | null
+          photo_urls?: string[] | null
           quantity_distributed?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "distribution_records_beneficiary_id_fkey"
+            columns: ["beneficiary_id"]
+            isOneToOne: false
+            referencedRelation: "beneficiaries"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "distribution_records_claim_id_fkey"
             columns: ["claim_id"]
             isOneToOne: false
             referencedRelation: "claims"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "distribution_records_inventory_id_fkey"
+            columns: ["inventory_id"]
+            isOneToOne: false
+            referencedRelation: "inventory"
             referencedColumns: ["id"]
           },
         ]
@@ -578,6 +693,7 @@ export type Database = {
           quantity_received: string | null
           quantity_remaining: string | null
           received_at: string
+          storage_location: string | null
           updated_at: string
         }
         Insert: {
@@ -593,6 +709,7 @@ export type Database = {
           quantity_received?: string | null
           quantity_remaining?: string | null
           received_at?: string
+          storage_location?: string | null
           updated_at?: string
         }
         Update: {
@@ -608,6 +725,7 @@ export type Database = {
           quantity_received?: string | null
           quantity_remaining?: string | null
           received_at?: string
+          storage_location?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -616,6 +734,71 @@ export type Database = {
             columns: ["claim_id"]
             isOneToOne: false
             referencedRelation: "claims"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      inventory_transactions: {
+        Row: {
+          category: string | null
+          created_at: string | null
+          destination_id: string | null
+          destination_name: string | null
+          destination_type: string | null
+          food_name: string
+          id: string
+          inventory_id: string | null
+          ngo_user_id: string
+          notes: string | null
+          quantity: number
+          source_id: string | null
+          source_name: string | null
+          source_type: string | null
+          transaction_type: string
+          unit: string | null
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string | null
+          destination_id?: string | null
+          destination_name?: string | null
+          destination_type?: string | null
+          food_name: string
+          id?: string
+          inventory_id?: string | null
+          ngo_user_id: string
+          notes?: string | null
+          quantity: number
+          source_id?: string | null
+          source_name?: string | null
+          source_type?: string | null
+          transaction_type: string
+          unit?: string | null
+        }
+        Update: {
+          category?: string | null
+          created_at?: string | null
+          destination_id?: string | null
+          destination_name?: string | null
+          destination_type?: string | null
+          food_name?: string
+          id?: string
+          inventory_id?: string | null
+          ngo_user_id?: string
+          notes?: string | null
+          quantity?: number
+          source_id?: string | null
+          source_name?: string | null
+          source_type?: string | null
+          transaction_type?: string
+          unit?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventory_transactions_inventory_id_fkey"
+            columns: ["inventory_id"]
+            isOneToOne: false
+            referencedRelation: "inventory"
             referencedColumns: ["id"]
           },
         ]
@@ -801,98 +984,6 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
-      }
-      beneficiaries: {
-        Row: {
-          id: string
-          ngo_id: string
-          name: string
-          phone: string | null
-          household_size: number
-          category: string
-          address: string | null
-          notes: string | null
-          is_active: boolean
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          ngo_id: string
-          name: string
-          phone?: string | null
-          household_size?: number
-          category?: string
-          address?: string | null
-          notes?: string | null
-          is_active?: boolean
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          ngo_id?: string
-          name?: string
-          phone?: string | null
-          household_size?: number
-          category?: string
-          address?: string | null
-          notes?: string | null
-          is_active?: boolean
-          created_at?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "beneficiaries_ngo_id_fkey"
-            columns: ["ngo_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          }
-        ]
-      }
-      distribution_beneficiaries: {
-        Row: {
-          id: string
-          distribution_id: string
-          beneficiary_id: string
-          items_received: Json | null
-          notes: string | null
-          created_at: string
-        }
-        Insert: {
-          id?: string
-          distribution_id: string
-          beneficiary_id: string
-          items_received?: Json | null
-          notes?: string | null
-          created_at?: string
-        }
-        Update: {
-          id?: string
-          distribution_id?: string
-          beneficiary_id?: string
-          items_received?: Json | null
-          notes?: string | null
-          created_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "distribution_beneficiaries_distribution_id_fkey"
-            columns: ["distribution_id"]
-            isOneToOne: false
-            referencedRelation: "distribution_records"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "distribution_beneficiaries_beneficiary_id_fkey"
-            columns: ["beneficiary_id"]
-            isOneToOne: false
-            referencedRelation: "beneficiaries"
-            referencedColumns: ["id"]
-          }
-        ]
       }
     }
     Views: {
