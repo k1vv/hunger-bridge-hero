@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -11,6 +11,8 @@ import AppLayout from "@/components/AppLayout";
 import NotFound from "./pages/shared/NotFound";
 import RoleDashboard from "./pages/shared/RoleDashboard";
 import FileComplaint from "./pages/shared/FileComplaint";
+import ForgotPassword from "./pages/shared/ForgotPassword";
+import ResetPassword from "./pages/shared/ResetPassword";
 
 // Vendor pages
 import LoginVendor from "./pages/vendor/LoginVendor";
