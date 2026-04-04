@@ -26,7 +26,9 @@ import {
   type FoodCategory,
 } from "../constants";
 
-const OPENAI_API_KEY = import.meta.env.VITE_OPENAI_API_KEY;
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+const EDGE_FUNCTION_URL = `${SUPABASE_URL}/functions/v1/ai-embeddings`;
 
 // ============================================================================
 // TYPES
@@ -365,7 +367,7 @@ export async function generateMatchExplanation(
   ngo: NGOProfileForAI,
   aiScore?: AIMatchScore
 ): Promise<AIMatchExplanation | null> {
-  if (!OPENAI_API_KEY) {
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
     // Fallback to rule-based explanation
     return generateFallbackExplanation(items, ngo, aiScore);
   }
@@ -399,17 +401,15 @@ Respond in JSON format:
   "recommendation": "high" | "medium" | "low"
 }`;
 
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+    const response = await fetch(EDGE_FUNCTION_URL, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${OPENAI_API_KEY}`,
+        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
       },
       body: JSON.stringify({
-        model: "gpt-3.5-turbo",
+        action: "chat",
         messages: [{ role: "user", content: prompt }],
-        max_tokens: 200,
-        temperature: 0.3,
       }),
     });
 
@@ -424,7 +424,6 @@ Respond in JSON format:
       return generateFallbackExplanation(items, ngo, aiScore);
     }
 
-    // Parse JSON response
     const parsed = JSON.parse(content);
     return {
       summary: parsed.summary || "Potential match found",
