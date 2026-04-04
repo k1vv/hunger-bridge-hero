@@ -1,4 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
+import { CATEGORY_TO_FOOD_TYPE_MAPPING, STORAGE_COMPATIBILITY } from "@/lib/constants";
+import { logger } from "@/lib/logger";
 
 export type NotificationType =
   | "claim_created"
@@ -6,6 +8,7 @@ export type NotificationType =
   | "claim_cancelled_by_vendor"
   | "pickup_completed"
   | "donation_created"
+  | "donation_recommended"
   | "verification_approved"
   | "verification_rejected"
   | "announcement"
@@ -156,69 +159,247 @@ export async function notifyNgoOfPickupComplete(
   });
 }
 
+// ============================================================================
+// NGO Recommendation Scoring for Notifications
+// ============================================================================
+
+interface DonationItemData {
+  category: string;
+  storage_condition: string;
+  quantity: number;
+  spoilage_risk?: string;
+}
+
+interface DonationBatchData {
+  pickup_lat: number | null;
+  pickup_lng: number | null;
+  pickup_date: string;
+}
+
+interface NGOProfileForScoring {
+  id: string;
+  food_types: string[] | null;
+  address_lat: number | null;
+  address_lng: number | null;
+  storage_capacity: string | null;
+  verification_status: string | null;
+}
+
+// Calculate distance using Haversine formula
+function calculateDistanceForNotification(
+  lat1: number | null,
+  lng1: number | null,
+  lat2: number | null,
+  lng2: number | null
+): number | null {
+  if (lat1 === null || lng1 === null || lat2 === null || lng2 === null) {
+    return null;
+  }
+  const R = 6371;
+  const dLat = (lat2 - lat1) * (Math.PI / 180);
+  const dLng = (lng2 - lng1) * (Math.PI / 180);
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * (Math.PI / 180)) *
+      Math.cos(lat2 * (Math.PI / 180)) *
+      Math.sin(dLng / 2) *
+      Math.sin(dLng / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
+
+// Parse NGO extended profile from storage_capacity JSON
+function parseNGOExtendedProfile(storageCapacity: string | null) {
+  const defaults = {
+    storageRoomTemp: true,
+    storageRefrigerator: false,
+    storageFreezer: false,
+    storageHeated: false,
+    pickupRadius: 10,
+    priorityNeeds: [] as string[],
+  };
+
+  if (!storageCapacity) return defaults;
+
+  try {
+    const parsed = JSON.parse(storageCapacity);
+    return {
+      storageRoomTemp: parsed.storage_room_temp ?? true,
+      storageRefrigerator: parsed.storage_refrigerator ?? false,
+      storageFreezer: parsed.storage_freezer ?? false,
+      storageHeated: parsed.storage_heated ?? false,
+      pickupRadius: parseFloat(parsed.pickup_radius) || 10,
+      priorityNeeds: parsed.priority_needs || [],
+    };
+  } catch {
+    return defaults;
+  }
+}
+
+// Calculate recommendation score for an NGO
+function calculateNGORecommendationScore(
+  ngo: NGOProfileForScoring,
+  items: DonationItemData[],
+  batch: DonationBatchData
+): { score: number; distance: number | null } {
+  if (items.length === 0) return { score: 0, distance: null };
+
+  const extended = parseNGOExtendedProfile(ngo.storage_capacity);
+  let foodMatchScore = 0;
+  let locationScore = 0;
+  let storageScore = 0;
+  let urgencyScore = 0;
+
+  // Calculate distance
+  const distance = calculateDistanceForNotification(
+    ngo.address_lat,
+    ngo.address_lng,
+    batch.pickup_lat,
+    batch.pickup_lng
+  );
+
+  // 1. FOOD MATCH (0-25 pts)
+  const ngoFoodTypes = ngo.food_types || [];
+  if (ngoFoodTypes.length === 0) {
+    foodMatchScore = 17; // Accepts all
+  } else {
+    let matchingItems = 0;
+    for (const item of items) {
+      const mappedTypes = CATEGORY_TO_FOOD_TYPE_MAPPING[item.category] || ["Packaged Food"];
+      const hasMatch = mappedTypes.some(type =>
+        ngoFoodTypes.some(pref => pref.toLowerCase() === type.toLowerCase())
+      );
+      if (hasMatch) matchingItems++;
+    }
+    foodMatchScore = Math.round((matchingItems / items.length) * 25);
+  }
+
+  // 2. LOCATION (0-20 pts)
+  if (distance !== null) {
+    const pickupRadius = extended.pickupRadius;
+    if (distance <= pickupRadius * 0.25) locationScore = 20;
+    else if (distance <= pickupRadius * 0.5) locationScore = 16;
+    else if (distance <= pickupRadius * 0.75) locationScore = 12;
+    else if (distance <= pickupRadius) locationScore = 8;
+    else if (distance <= pickupRadius * 1.5) locationScore = 4;
+    else locationScore = 0;
+  } else {
+    locationScore = 10; // Unknown distance
+  }
+
+  // 3. STORAGE (0-15 pts)
+  const storageMap: Record<string, string> = {
+    room_temperature: "room",
+    refrigerated: "refrigerator",
+    frozen: "freezer",
+    keep_warm: "heated",
+  };
+
+  let compatibleItems = 0;
+  for (const item of items) {
+    const required = storageMap[item.storage_condition] || "room";
+    let canStore = false;
+    if (required === "room" && extended.storageRoomTemp) canStore = true;
+    if (required === "refrigerator" && extended.storageRefrigerator) canStore = true;
+    if (required === "freezer" && extended.storageFreezer) canStore = true;
+    if (required === "heated" && (extended.storageHeated || extended.storageRoomTemp)) canStore = true;
+    if (canStore) compatibleItems++;
+  }
+  storageScore = Math.round((compatibleItems / items.length) * 15);
+
+  // 4. URGENCY (0-15 pts) - based on spoilage risk
+  const highRiskCount = items.filter(i => i.spoilage_risk === "high" || i.spoilage_risk === "expired").length;
+  const mediumRiskCount = items.filter(i => i.spoilage_risk === "medium").length;
+  urgencyScore = Math.min(15, highRiskCount * 6 + mediumRiskCount * 2);
+
+  // Total score (max 75 for notification threshold)
+  const total = foodMatchScore + locationScore + storageScore + urgencyScore;
+
+  return { score: total, distance };
+}
+
+const NOTIFICATION_SCORE_THRESHOLD = 35; // Minimum score to notify (out of ~75)
+const MAX_DISTANCE_KM = 15; // Maximum distance to notify
+
 /**
  * Notify NGOs when a new donation matches their preferences (recommended)
- * Only notifies NGOs whose food_types overlap with the donation categories
+ * Uses full scoring algorithm: food match, location, storage, urgency
  */
 export async function notifyNgosOfNewDonation(
   vendorName: string,
-  itemCategories: string[],
+  items: DonationItemData[],
   pickupLocation: string,
-  batchId: string
+  batchId: string,
+  batchData: DonationBatchData
 ): Promise<void> {
+  logger.system.info("Starting NGO notification process", {
+    vendorName,
+    itemCount: items.length,
+    batchId
+  });
+
   // Get all NGO user IDs
   const ngoUserIds = await getUsersByRole("ngo");
-  if (ngoUserIds.length === 0) return;
-
-  // Get NGO profiles with their food type preferences
-  const { data: ngoProfiles, error } = await supabase
-    .from("profiles")
-    .select("id, food_types, service_area")
-    .in("id", ngoUserIds);
-
-  if (error) {
-    console.error("Failed to fetch NGO profiles:", error);
+  if (ngoUserIds.length === 0) {
+    logger.system.info("No NGO users found to notify");
     return;
   }
 
-  // Find NGOs whose preferences match the donation categories
-  const matchingNgoIds: string[] = [];
+  // Get NGO profiles with scoring data
+  const { data: ngoProfiles, error } = await supabase
+    .from("profiles")
+    .select("id, food_types, address_lat, address_lng, storage_capacity, verification_status")
+    .in("id", ngoUserIds)
+    .eq("verification_status", "verified");
+
+  if (error) {
+    logger.system.error("Failed to fetch NGO profiles for notification", error.message);
+    return;
+  }
+
+  // Calculate scores and filter NGOs
+  const scoredNgos: Array<{ id: string; score: number; distance: number | null }> = [];
 
   for (const ngo of ngoProfiles || []) {
-    // If NGO has no food_types preference, they want all types (recommend to them)
-    if (!ngo.food_types || ngo.food_types.length === 0) {
-      matchingNgoIds.push(ngo.id);
-      continue;
-    }
-
-    // Check if any of the donation categories match NGO's preferences
-    const hasMatchingCategory = itemCategories.some((category) =>
-      ngo.food_types!.some((pref) =>
-        pref.toLowerCase() === category.toLowerCase()
-      )
+    const { score, distance } = calculateNGORecommendationScore(
+      ngo as NGOProfileForScoring,
+      items,
+      batchData
     );
 
-    if (hasMatchingCategory) {
-      matchingNgoIds.push(ngo.id);
+    // Filter by score threshold and max distance
+    const withinDistance = distance === null || distance <= MAX_DISTANCE_KM;
+    if (score >= NOTIFICATION_SCORE_THRESHOLD && withinDistance) {
+      scoredNgos.push({ id: ngo.id, score, distance });
     }
   }
 
-  if (matchingNgoIds.length === 0) return;
+  logger.system.info("NGO notification scoring complete", {
+    totalNgos: ngoProfiles?.length || 0,
+    qualifiedNgos: scoredNgos.length,
+    threshold: NOTIFICATION_SCORE_THRESHOLD,
+    maxDistance: MAX_DISTANCE_KM
+  });
 
-  // Create notifications only for matching NGOs
-  const categoryList = itemCategories.slice(0, 3).join(", ");
-  const categoryText = itemCategories.length > 3
-    ? `${categoryList} and ${itemCategories.length - 3} more`
-    : categoryList;
+  if (scoredNgos.length === 0) return;
+
+  // Create notifications for qualified NGOs
+  const categoryList = [...new Set(items.map(i => i.category))].slice(0, 3).join(", ");
+  const categoryText = items.length > 3 ? `${categoryList} and more` : categoryList;
 
   await createNotificationForUsers(
-    matchingNgoIds,
-    "donation_created",
+    scoredNgos.map(n => n.id),
+    "donation_recommended",
     "Recommended Donation Available",
-    `${vendorName} has posted new items matching your preferences (${categoryText}) available for pickup at ${pickupLocation}.`,
+    `${vendorName} has posted items matching your preferences (${categoryText}) near your location. Available for pickup at ${pickupLocation}.`,
     "donation_batch",
     batchId
   );
+
+  logger.system.info("NGO notifications sent", {
+    notifiedCount: scoredNgos.length,
+    batchId
+  });
 }
 
 /**

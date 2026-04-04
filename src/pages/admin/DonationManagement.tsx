@@ -148,9 +148,9 @@ const DonationManagement = () => {
       const categories = items.map((i: any) => i.category);
       const category = categories[0] || "Other";
 
-      // Determine spoilage risk based on category
-      const highSpoilageCategories = ["Cooked", "Ready-to-eat", "Dairy"];
-      const mediumSpoilageCategories = ["Bakery", "Fruits", "Vegetables"];
+      // Determine spoilage risk based on category (using standardized category names)
+      const highSpoilageCategories = ["Cooked Meals", "Ready-to-Eat", "Dairy Products", "Meat & Seafood"];
+      const mediumSpoilageCategories = ["Bakery & Bread", "Fruits", "Vegetables"];
       let spoilageRisk: "low" | "medium" | "high" = "low";
       if (highSpoilageCategories.includes(category)) spoilageRisk = "high";
       else if (mediumSpoilageCategories.includes(category)) spoilageRisk = "medium";

@@ -34,49 +34,12 @@ import {
   CheckCircle,
 } from "lucide-react";
 import { logger } from "@/lib/logger";
-
-// Constants
-const ORGANIZATION_TYPES = [
-  "Foodbank",
-  "NGO",
-  "Shelter",
-  "Mosque",
-  "Temple",
-  "Church",
-  "Community Center",
-  "School",
-  "Hospital",
-  "Other",
-];
-
-const FOOD_TYPES = [
-  "Cooked Meals",
-  "Bakery",
-  "Vegetables",
-  "Fruits",
-  "Dairy",
-  "Grains",
-  "Canned Food",
-  "Frozen Food",
-  "Beverages",
-  "Ready-to-eat",
-  "Packaged Food",
-];
-
-const BENEFICIARY_TYPES = [
-  "Homeless",
-  "Low-income Families",
-  "Students",
-  "Refugees",
-  "Elderly",
-  "Orphans",
-  "Disabled",
-  "Single Parents",
-  "Unemployed",
-  "General Public",
-];
-
-const DISTRIBUTION_FREQUENCIES = ["Daily", "Weekly", "Bi-weekly", "Monthly", "As needed"];
+import {
+  FOOD_CATEGORIES,
+  ORGANIZATION_TYPES,
+  BENEFICIARY_TYPES,
+  DISTRIBUTION_FREQUENCIES,
+} from "@/lib/constants";
 
 interface ExtendedProfileData {
   // Organization Details
@@ -602,7 +565,7 @@ const NgoProfile = () => {
                 <div className="space-y-4">
                   <Label className="text-base font-medium">Food Types Accepted</Label>
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
-                    {FOOD_TYPES.map((type) => (
+                    {FOOD_CATEGORIES.map((type) => (
                       <div
                         key={type}
                         className={`flex items-center gap-2 p-3 rounded-lg border cursor-pointer transition-colors ${
@@ -636,7 +599,7 @@ const NgoProfile = () => {
                   <Label className="text-base font-medium">Priority Needs</Label>
                   <p className="text-xs text-muted-foreground">Select items you need most urgently</p>
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
-                    {FOOD_TYPES.map((type) => (
+                    {FOOD_CATEGORIES.map((type) => (
                       <div
                         key={type}
                         className={`flex items-center gap-2 p-3 rounded-lg border cursor-pointer transition-colors ${

@@ -48,10 +48,12 @@ import {
   MapPin,
 } from "lucide-react";
 import { logger } from "@/lib/logger";
+import { FOOD_CATEGORIES, NGO_STORAGE_TYPES } from "@/lib/constants";
 
-// Storage types
-const STORAGE_TYPES = ["Room Temperature", "Chilled", "Frozen", "Dry Storage"];
-const CATEGORIES = ["Vegetables", "Fruits", "Bakery", "Dairy", "Grains", "Canned", "Frozen", "Cooked", "Beverage", "Ready-to-eat", "Other"];
+// Storage types - use centralized NGO storage types
+const STORAGE_TYPES = NGO_STORAGE_TYPES as readonly string[];
+// Food categories - use centralized categories
+const CATEGORIES = FOOD_CATEGORIES as readonly string[];
 const ITEM_CONDITIONS = ["Excellent", "Good", "Fair", "Poor"];
 const WASTE_REASONS = ["Expired", "Spoiled", "Not Collected", "Storage Issue", "Damaged", "Other"];
 

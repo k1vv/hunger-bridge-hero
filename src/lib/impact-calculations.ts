@@ -12,19 +12,32 @@
 // FOOD VALUE ESTIMATION (RM per kg by category)
 // ============================================================================
 // Based on average Malaysia market prices (2024)
+// Keys match standardized FOOD_CATEGORIES from constants.ts
 
 export const FOOD_VALUE_PER_KG: Record<string, number> = {
-  "Vegetables": 6.00,      // RM 6/kg average
-  "Fruits": 8.00,          // RM 8/kg average
-  "Bakery": 15.00,         // RM 15/kg (bread, pastries)
-  "Dairy": 12.00,          // RM 12/kg (milk, cheese, yogurt)
-  "Grains": 4.00,          // RM 4/kg (rice, pasta)
-  "Canned": 10.00,         // RM 10/kg (canned goods)
-  "Frozen": 18.00,         // RM 18/kg (frozen meals, meat)
-  "Cooked": 20.00,         // RM 20/kg (prepared meals)
-  "Beverage": 5.00,        // RM 5/kg (drinks)
-  "Ready-to-eat": 25.00,   // RM 25/kg (ready meals)
-  "Other": 10.00,          // RM 10/kg default
+  // Standardized category names
+  "Cooked Meals": 20.00,         // RM 20/kg (prepared meals)
+  "Bakery & Bread": 15.00,       // RM 15/kg (bread, pastries)
+  "Vegetables": 6.00,            // RM 6/kg average
+  "Fruits": 8.00,                // RM 8/kg average
+  "Dairy Products": 12.00,       // RM 12/kg (milk, cheese, yogurt)
+  "Grains & Rice": 4.00,         // RM 4/kg (rice, pasta)
+  "Canned & Packaged": 10.00,    // RM 10/kg (canned goods)
+  "Frozen Food": 18.00,          // RM 18/kg (frozen meals, meat)
+  "Beverages": 5.00,             // RM 5/kg (drinks)
+  "Ready-to-Eat": 25.00,         // RM 25/kg (ready meals)
+  "Snacks & Desserts": 12.00,    // RM 12/kg (snacks, sweets)
+  "Meat & Seafood": 30.00,       // RM 30/kg (meat, fish)
+  "Other": 10.00,                // RM 10/kg default
+  // Legacy keys for backward compatibility
+  "Bakery": 15.00,
+  "Dairy": 12.00,
+  "Grains": 4.00,
+  "Canned": 10.00,
+  "Frozen": 18.00,
+  "Cooked": 20.00,
+  "Beverage": 5.00,
+  "Ready-to-eat": 25.00,
 };
 
 // Default value if category not found
@@ -61,19 +74,32 @@ export function calculateFoodValue(quantity: number | string, unit: string, cate
 // MEALS SERVED ESTIMATION
 // ============================================================================
 // Based on typical serving sizes (meals per kg)
+// Keys match standardized FOOD_CATEGORIES from constants.ts
 
 export const MEALS_PER_KG: Record<string, number> = {
-  "Vegetables": 4,         // 4 servings per kg
-  "Fruits": 5,             // 5 servings per kg
-  "Bakery": 6,             // 6 servings per kg (bread slices, pastries)
-  "Dairy": 4,              // 4 servings per kg
-  "Grains": 8,             // 8 servings per kg (rice expands)
-  "Canned": 3,             // 3 servings per kg
-  "Frozen": 3,             // 3 servings per kg
-  "Cooked": 3,             // 3 servings per kg (ready meals)
-  "Beverage": 4,           // 4 servings per kg (250ml each)
-  "Ready-to-eat": 2,       // 2 servings per kg (full meals)
-  "Other": 3,              // 3 servings per kg default
+  // Standardized category names
+  "Cooked Meals": 3,             // 3 servings per kg (ready meals)
+  "Bakery & Bread": 6,           // 6 servings per kg (bread slices, pastries)
+  "Vegetables": 4,               // 4 servings per kg
+  "Fruits": 5,                   // 5 servings per kg
+  "Dairy Products": 4,           // 4 servings per kg
+  "Grains & Rice": 8,            // 8 servings per kg (rice expands)
+  "Canned & Packaged": 3,        // 3 servings per kg
+  "Frozen Food": 3,              // 3 servings per kg
+  "Beverages": 4,                // 4 servings per kg (250ml each)
+  "Ready-to-Eat": 2,             // 2 servings per kg (full meals)
+  "Snacks & Desserts": 8,        // 8 servings per kg (small portions)
+  "Meat & Seafood": 4,           // 4 servings per kg
+  "Other": 3,                    // 3 servings per kg default
+  // Legacy keys for backward compatibility
+  "Bakery": 6,
+  "Dairy": 4,
+  "Grains": 8,
+  "Canned": 3,
+  "Frozen": 3,
+  "Cooked": 3,
+  "Beverage": 4,
+  "Ready-to-eat": 2,
 };
 
 const DEFAULT_MEALS_PER_KG = 3;
@@ -111,19 +137,32 @@ export function calculateMealsServed(quantity: number | string, unit: string, ca
 // ============================================================================
 // Based on food waste environmental impact studies
 // Average: 2.5 kg CO2 equivalent per kg of food waste prevented
+// Keys match standardized FOOD_CATEGORIES from constants.ts
 
 export const CO2_KG_PER_FOOD_KG: Record<string, number> = {
-  "Vegetables": 2.0,       // Lower carbon footprint
-  "Fruits": 1.5,           // Lower carbon footprint
-  "Bakery": 2.5,           // Medium
-  "Dairy": 4.0,            // Higher (animal products)
-  "Grains": 1.5,           // Lower
-  "Canned": 2.0,           // Medium (processing)
-  "Frozen": 3.5,           // Higher (cold chain)
-  "Cooked": 3.0,           // Higher (cooking energy)
-  "Beverage": 1.0,         // Lower
-  "Ready-to-eat": 3.5,     // Higher (full processing)
-  "Other": 2.5,            // Average
+  // Standardized category names
+  "Cooked Meals": 3.0,           // Higher (cooking energy)
+  "Bakery & Bread": 2.5,         // Medium
+  "Vegetables": 2.0,             // Lower carbon footprint
+  "Fruits": 1.5,                 // Lower carbon footprint
+  "Dairy Products": 4.0,         // Higher (animal products)
+  "Grains & Rice": 1.5,          // Lower
+  "Canned & Packaged": 2.0,      // Medium (processing)
+  "Frozen Food": 3.5,            // Higher (cold chain)
+  "Beverages": 1.0,              // Lower
+  "Ready-to-Eat": 3.5,           // Higher (full processing)
+  "Snacks & Desserts": 2.0,      // Medium
+  "Meat & Seafood": 6.0,         // Highest (animal products)
+  "Other": 2.5,                  // Average
+  // Legacy keys for backward compatibility
+  "Bakery": 2.5,
+  "Dairy": 4.0,
+  "Grains": 1.5,
+  "Canned": 2.0,
+  "Frozen": 3.5,
+  "Cooked": 3.0,
+  "Beverage": 1.0,
+  "Ready-to-eat": 3.5,
 };
 
 const DEFAULT_CO2_PER_KG = 2.5;

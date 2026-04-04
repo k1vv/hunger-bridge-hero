@@ -3,20 +3,13 @@
  * Provides both forward (NGO sees donations) and reverse (vendor sees NGOs) matching
  */
 
-// Category to food type mapping
-export const categoryToFoodType: Record<string, string[]> = {
-  "Cooked Meals": ["Cooked Food", "Ready-to-Eat"],
-  "Fresh Produce": ["Fruits", "Vegetables", "Fresh Produce"],
-  "Bakery & Bread": ["Bakery", "Bread", "Pastries"],
-  "Dairy Products": ["Dairy", "Milk", "Cheese"],
-  "Canned & Packaged": ["Packaged Food", "Canned Food", "Non-Perishable"],
-  "Beverages": ["Beverages", "Drinks"],
-  "Meat & Seafood": ["Meat", "Seafood", "Protein"],
-  "Dry Goods": ["Rice", "Noodles", "Dry Goods", "Grains"],
-  "Snacks & Desserts": ["Snacks", "Desserts", "Sweets"],
-  "Baby Food": ["Baby Food", "Infant Formula"],
-  Other: ["Packaged Food", "Other"],
-};
+import {
+  CATEGORY_TO_FOOD_TYPE_MAPPING,
+  STORAGE_COMPATIBILITY,
+} from "./constants";
+
+// Re-export the mapping from constants for backward compatibility
+export const categoryToFoodType = CATEGORY_TO_FOOD_TYPE_MAPPING;
 
 /**
  * Calculate distance between two coordinates using Haversine formula
@@ -111,10 +104,9 @@ export function calculateReverseMatchScore(
     ngo.lng ?? null
   );
 
-  // ============================================================================
   // 1. FOOD PREFERENCE MATCHING (0-30 points)
-  // ============================================================================
   const ngoFoodTypes = ngo.food_types || [];
+
   if (ngoFoodTypes.length === 0) {
     // NGO accepts all food types
     foodMatchScore = 22;
@@ -134,9 +126,7 @@ export function calculateReverseMatchScore(
     foodMatchScore = Math.round(matchRatio * 30);
   }
 
-  // ============================================================================
   // 2. LOCATION/DISTANCE SCORE (0-25 points)
-  // ============================================================================
   if (distance !== null) {
     const pickupRadius = ngo.pickup_radius || 10; // Default 10km
 
@@ -155,25 +145,13 @@ export function calculateReverseMatchScore(
     locationScore = 10; // Unknown distance, give base score
   }
 
-  // ============================================================================
   // 3. STORAGE COMPATIBILITY (0-20 points)
-  // ============================================================================
   const ngoStorageTypes = ngo.storage_types || ["Room Temperature"];
-  const itemStorageTypes = new Set(
-    items.map((i) => i.storage_condition || "room")
-  );
-
-  const storageMap: Record<string, string[]> = {
-    room: ["Room Temperature", "Ambient", "room"],
-    chilled: ["Refrigerated", "Cold Storage", "chilled"],
-    frozen: ["Frozen", "Freezer", "frozen"],
-    warm: ["Heated", "Warm", "warm"],
-  };
 
   let compatibleItems = 0;
   for (const item of items) {
-    const condition = item.storage_condition || "room";
-    const acceptableTypes = storageMap[condition] || ["Room Temperature"];
+    const condition = item.storage_condition || "room_temperature";
+    const acceptableTypes = STORAGE_COMPATIBILITY[condition as keyof typeof STORAGE_COMPATIBILITY] || ["Room Temperature"];
     const isCompatible = acceptableTypes.some((type) =>
       ngoStorageTypes.some(
         (ngoType) => ngoType.toLowerCase() === type.toLowerCase()
@@ -183,9 +161,7 @@ export function calculateReverseMatchScore(
   }
   storageScore = Math.round((compatibleItems / items.length) * 20);
 
-  // ============================================================================
   // 4. PRIORITY NEEDS ALIGNMENT (0-15 points)
-  // ============================================================================
   const priorityNeeds = ngo.priority_needs || [];
   if (priorityNeeds.length === 0) {
     priorityScore = 8; // No specific priorities
@@ -210,9 +186,7 @@ export function calculateReverseMatchScore(
     );
   }
 
-  // ============================================================================
   // 5. CAPACITY/QUANTITY HANDLING (0-10 points)
-  // ============================================================================
   // NGOs with verified status and storage capabilities get higher capacity scores
   if (ngo.verification_status === "verified") {
     capacityScore = 10;
@@ -255,17 +229,20 @@ export function getRecommendedNGOs(
     return [];
   }
 
-  const scoredNGOs = ngos
-    .filter((ngo) => ngo.verification_status === "verified")
-    .map((ngo) => ({
-      ...ngo,
-      score: calculateReverseMatchScore(ngo, items, vendorLat, vendorLng),
-    }))
-    .filter((ngo) => ngo.score.total >= 20) // Minimum threshold
+  // Filter verified NGOs
+  const verifiedNGOs = ngos.filter((ngo) => ngo.verification_status === "verified");
+
+  // Calculate scores
+  const scoredNGOs = verifiedNGOs.map((ngo) => ({
+    ...ngo,
+    score: calculateReverseMatchScore(ngo, items, vendorLat, vendorLng),
+  }));
+
+  // Filter by minimum threshold, sort, and limit
+  return scoredNGOs
+    .filter((ngo) => ngo.score.total >= 20)
     .sort((a, b) => b.score.total - a.score.total)
     .slice(0, limit);
-
-  return scoredNGOs;
 }
 
 /**

@@ -11,6 +11,13 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import LocationPickerMap, { type PickedLocation } from "@/components/LocationPickerMap";
+import {
+  FOOD_CATEGORIES,
+  STORAGE_CONDITIONS,
+  STORAGE_CONDITION_LABELS,
+  HALAL_STATUS,
+  HALAL_STATUS_LABELS,
+} from "@/lib/constants";
 
 const EditDonation = () => {
   const { id } = useParams();
@@ -95,7 +102,7 @@ const EditDonation = () => {
                 <Select value={category} onValueChange={setCategory}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    {["Vegetables", "Bakery", "Dairy", "Grains", "Canned", "Frozen", "Cooked", "Fruits", "Other"].map(c => (
+                    {FOOD_CATEGORIES.map(c => (
                       <SelectItem key={c} value={c}>{c}</SelectItem>
                     ))}
                   </SelectContent>
@@ -116,9 +123,9 @@ const EditDonation = () => {
                 <Select value={halalStatus} onValueChange={setHalalStatus}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="halal">Halal</SelectItem>
-                    <SelectItem value="non_halal">Non-Halal</SelectItem>
-                    <SelectItem value="unknown">Unknown</SelectItem>
+                    {HALAL_STATUS.map(status => (
+                      <SelectItem key={status} value={status}>{HALAL_STATUS_LABELS[status]}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -127,9 +134,9 @@ const EditDonation = () => {
                 <Select value={storageCondition} onValueChange={setStorageCondition}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="room_temperature">Room Temperature</SelectItem>
-                    <SelectItem value="refrigerated">Refrigerated</SelectItem>
-                    <SelectItem value="frozen">Frozen</SelectItem>
+                    {STORAGE_CONDITIONS.map(condition => (
+                      <SelectItem key={condition} value={condition}>{STORAGE_CONDITION_LABELS[condition]}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>

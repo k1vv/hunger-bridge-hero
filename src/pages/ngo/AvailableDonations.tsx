@@ -16,6 +16,7 @@ import { logger } from "@/lib/logger";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { notifyVendorOfClaim } from "@/lib/notifications";
 import PickupLocationMap from "@/components/PickupLocationMap";
+import { FOOD_CATEGORIES, CATEGORY_TO_FOOD_TYPE_MAPPING, STORAGE_COMPATIBILITY } from "@/lib/constants";
 
 // ============================================================================
 // SMART RECOMMENDATION ALGORITHM
@@ -34,6 +35,7 @@ interface ExtendedNGOProfile {
   storageRoomTemp: boolean;
   storageRefrigerator: boolean;
   storageFreezer: boolean;
+  storageHeated: boolean;
   canHandleCooked: boolean;
   hasTransport: boolean;
   pickupRadius: number;
@@ -61,6 +63,7 @@ const parseExtendedProfile = (profile: NGOProfileData | null): ExtendedNGOProfil
     storageRoomTemp: true,
     storageRefrigerator: false,
     storageFreezer: false,
+    storageHeated: false,
     canHandleCooked: true,
     hasTransport: false,
     pickupRadius: 10,
@@ -87,6 +90,7 @@ const parseExtendedProfile = (profile: NGOProfileData | null): ExtendedNGOProfil
           storageRoomTemp: parsed.storage_room_temp ?? true,
           storageRefrigerator: parsed.storage_refrigerator ?? false,
           storageFreezer: parsed.storage_freezer ?? false,
+          storageHeated: parsed.storage_heated ?? false,
           canHandleCooked: parsed.can_handle_cooked ?? true,
           hasTransport: parsed.has_transport ?? false,
           pickupRadius: parseFloat(parsed.pickup_radius) || 10,
@@ -128,26 +132,15 @@ const calculateDistance = (
   return R * c; // Distance in km
 };
 
-// Map donation item categories to NGO food type preferences
-const categoryToFoodType: Record<string, string[]> = {
-  "Vegetables": ["Vegetables"],
-  "Fruits": ["Fruits"],
-  "Bakery": ["Bakery"],
-  "Dairy": ["Dairy"],
-  "Grains": ["Grains"],
-  "Canned": ["Canned Food"],
-  "Frozen": ["Frozen Food"],
-  "Cooked": ["Cooked Meals"],
-  "Beverage": ["Beverages"],
-  "Ready-to-eat": ["Ready-to-eat"],
-  "Other": ["Packaged Food"],
-};
+// Use centralized category to food type mapping
+const categoryToFoodType = CATEGORY_TO_FOOD_TYPE_MAPPING;
 
 // Map storage conditions to required storage types
-const storageRequirements: Record<string, "room" | "refrigerator" | "freezer"> = {
+const storageRequirements: Record<string, "room" | "refrigerator" | "freezer" | "heated"> = {
   "room_temperature": "room",
-  "chilled": "refrigerator",
+  "refrigerated": "refrigerator",
   "frozen": "freezer",
+  "keep_warm": "heated",
 };
 
 // Calculate recommendation score for a batch
@@ -256,9 +249,12 @@ const calculateRecommendationScore = (
     if (required === "room" && ngoProfile.storageRoomTemp) canStore = true;
     if (required === "refrigerator" && ngoProfile.storageRefrigerator) canStore = true;
     if (required === "freezer" && ngoProfile.storageFreezer) canStore = true;
+    if (required === "heated" && ngoProfile.storageHeated) canStore = true;
+    // Fallback: if heated storage is required but NGO only has room temp, allow with lower priority
+    if (required === "heated" && !ngoProfile.storageHeated && ngoProfile.storageRoomTemp) canStore = true;
 
     // Check if it's cooked food and NGO can handle it
-    if (item.category === "Cooked" && !ngoProfile.canHandleCooked) canStore = false;
+    if ((item.category === "Cooked Meals" || item.category === "Ready-to-Eat") && !ngoProfile.canHandleCooked) canStore = false;
 
     if (canStore) compatibleItems++;
   }
@@ -714,7 +710,7 @@ const AvailableDonations = () => {
             <SelectTrigger className="w-40 h-9"><SelectValue placeholder="Category" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Categories</SelectItem>
-              {["Vegetables", "Fruits", "Bakery", "Dairy", "Grains", "Canned", "Frozen", "Cooked", "Beverage", "Ready-to-eat", "Other"].map(c => (
+              {FOOD_CATEGORIES.map(c => (
                 <SelectItem key={c} value={c}>{c}</SelectItem>
               ))}
             </SelectContent>

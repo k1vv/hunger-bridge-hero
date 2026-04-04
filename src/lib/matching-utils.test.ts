@@ -63,9 +63,9 @@ describe("categoryToFoodType mapping", () => {
     expect(categoryToFoodType["Cooked Meals"]).toContain("Ready-to-Eat");
   });
 
-  it("should map Fresh Produce to appropriate food types", () => {
-    expect(categoryToFoodType["Fresh Produce"]).toContain("Fruits");
-    expect(categoryToFoodType["Fresh Produce"]).toContain("Vegetables");
+  it("should map Vegetables correctly", () => {
+    expect(categoryToFoodType["Vegetables"]).toContain("Vegetables");
+    expect(categoryToFoodType["Vegetables"]).toContain("Fresh Produce");
   });
 
   it("should map Bakery & Bread correctly", () => {
@@ -78,18 +78,21 @@ describe("categoryToFoodType mapping", () => {
     expect(categoryToFoodType["Other"]).toContain("Packaged Food");
   });
 
-  it("should have all major food categories", () => {
+  it("should have all standardized food categories", () => {
+    // These are the standardized categories from constants.ts
     const expectedCategories = [
       "Cooked Meals",
-      "Fresh Produce",
       "Bakery & Bread",
+      "Vegetables",
+      "Fruits",
       "Dairy Products",
+      "Grains & Rice",
       "Canned & Packaged",
+      "Frozen Food",
       "Beverages",
-      "Meat & Seafood",
-      "Dry Goods",
+      "Ready-to-Eat",
       "Snacks & Desserts",
-      "Baby Food",
+      "Meat & Seafood",
       "Other",
     ];
     expectedCategories.forEach((cat) => {
@@ -112,7 +115,7 @@ describe("calculateReverseMatchScore", () => {
   };
 
   const baseItems: DonationItem[] = [
-    { category: "Cooked Meals", storage_condition: "room", quantity: 10, unit: "kg" },
+    { category: "Cooked Meals", storage_condition: "room_temperature", quantity: 10, unit: "kg" },
   ];
 
   it("should return zero score for empty items", () => {
@@ -128,8 +131,8 @@ describe("calculateReverseMatchScore", () => {
 
   it("should give higher food match for all items matching", () => {
     const items: DonationItem[] = [
-      { category: "Cooked Meals", storage_condition: "room" },
-      { category: "Bakery & Bread", storage_condition: "room" },
+      { category: "Cooked Meals", storage_condition: "room_temperature" },
+      { category: "Bakery & Bread", storage_condition: "room_temperature" },
     ];
     const score = calculateReverseMatchScore(baseNGO, items);
     expect(score.foodMatch).toBeGreaterThan(20);
@@ -162,12 +165,12 @@ describe("calculateReverseMatchScore", () => {
 
   it("should calculate storage compatibility score", () => {
     const items: DonationItem[] = [
-      { category: "Dairy Products", storage_condition: "chilled" },
+      { category: "Dairy Products", storage_condition: "refrigerated" },
     ];
     const ngoWithColdStorage: NGOProfile = {
       ...baseNGO,
       storage_types: ["Refrigerated", "Cold Storage"],
-      food_types: ["Dairy"],
+      food_types: ["Dairy Products"],
     };
     const score = calculateReverseMatchScore(ngoWithColdStorage, items);
     expect(score.storage).toBeGreaterThan(0);
@@ -175,7 +178,7 @@ describe("calculateReverseMatchScore", () => {
 
   it("should give full storage score when all items are compatible", () => {
     const items: DonationItem[] = [
-      { category: "Cooked Meals", storage_condition: "room" },
+      { category: "Cooked Meals", storage_condition: "room_temperature" },
     ];
     const score = calculateReverseMatchScore(baseNGO, items);
     expect(score.storage).toBe(20);
@@ -201,9 +204,9 @@ describe("calculateReverseMatchScore", () => {
 
   it("should handle multiple item categories", () => {
     const items: DonationItem[] = [
-      { category: "Cooked Meals", storage_condition: "room" },
-      { category: "Fresh Produce", storage_condition: "chilled" },
-      { category: "Beverages", storage_condition: "room" },
+      { category: "Cooked Meals", storage_condition: "room_temperature" },
+      { category: "Vegetables", storage_condition: "refrigerated" },
+      { category: "Beverages", storage_condition: "room_temperature" },
     ];
     const score = calculateReverseMatchScore(baseNGO, items);
     expect(score.total).toBeGreaterThan(0);
@@ -228,7 +231,7 @@ describe("getRecommendedNGOs", () => {
   });
 
   const baseItems: DonationItem[] = [
-    { category: "Cooked Meals", storage_condition: "room", quantity: 10 },
+    { category: "Cooked Meals", storage_condition: "room_temperature", quantity: 10 },
   ];
 
   it("should return empty array for empty NGO list", () => {
@@ -283,9 +286,9 @@ describe("getRecommendedNGOs", () => {
     const ngos = [
       createNGO("1", "Good NGO", ["Cooked Food"]),
     ];
-    // Create items that will result in very low match
+    // Create items that will result in very low match (Meat & Seafood when NGO wants Cooked Food)
     const lowMatchItems: DonationItem[] = [
-      { category: "Baby Food", storage_condition: "frozen" },
+      { category: "Meat & Seafood", storage_condition: "frozen" },
     ];
 
     const result = getRecommendedNGOs(ngos, lowMatchItems);
@@ -378,7 +381,7 @@ describe("Integration Tests", () => {
         organization_name: "Bakery Specialist NGO",
         lat: 3.14,
         lng: 101.69,
-        food_types: ["Bakery", "Bread", "Pastries"],
+        food_types: ["Bakery", "Bread", "Pastries", "Bakery & Bread"],
         storage_types: ["Room Temperature"],
         pickup_radius: 20,
         verification_status: "verified",
@@ -396,7 +399,7 @@ describe("Integration Tests", () => {
     ];
 
     const items: DonationItem[] = [
-      { category: "Bakery & Bread", storage_condition: "room", quantity: 50 },
+      { category: "Bakery & Bread", storage_condition: "room_temperature", quantity: 50 },
     ];
 
     const result = getRecommendedNGOs(ngos, items, 3.14, 101.69);
@@ -430,7 +433,7 @@ describe("Integration Tests", () => {
     ];
 
     const items: DonationItem[] = [
-      { category: "Cooked Meals", storage_condition: "room" },
+      { category: "Cooked Meals", storage_condition: "room_temperature" },
     ];
 
     const result = getRecommendedNGOs(ngos, items, 3.14, 101.69);

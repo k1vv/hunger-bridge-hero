@@ -18,6 +18,14 @@ import { logger } from "@/lib/logger";
 import { notifyNgosOfNewDonation } from "@/lib/notifications";
 import RecommendedNGOs from "@/components/vendor/RecommendedNGOs";
 import DonationTemplates, { type DonationTemplate, type TemplateItem } from "@/components/vendor/DonationTemplates";
+import {
+  FOOD_CATEGORIES,
+  FOOD_UNITS,
+  STORAGE_CONDITIONS,
+  STORAGE_CONDITION_LABELS,
+  HALAL_STATUS,
+  HALAL_STATUS_LABELS,
+} from "@/lib/constants";
 
 interface FoodItem {
   id: string;
@@ -49,8 +57,7 @@ const emptyItem = (): FoodItem => ({
   notes: "",
 });
 
-const categories = ["Vegetables", "Fruits", "Bakery", "Dairy", "Grains", "Canned", "Frozen", "Cooked", "Beverage", "Ready-to-eat", "Other"];
-const units = ["packs", "boxes", "kg", "litres", "bottles", "pieces", "trays", "bags"];
+// Using centralized constants from @/lib/constants
 
 const CreateDonation = () => {
   const { user } = useAuth();
@@ -76,6 +83,7 @@ const CreateDonation = () => {
   const [contactPhone, setContactPhone] = useState("");
   const [donationType, setDonationType] = useState("immediate");
   const [batchNotes, setBatchNotes] = useState("");
+  const [estimatedValue, setEstimatedValue] = useState("");
 
   // Section B: Food items
   const [items, setItems] = useState<FoodItem[]>([emptyItem()]);
@@ -110,6 +118,7 @@ const CreateDonation = () => {
 
   const validate = (): boolean => {
     if (!pickupLocation.address) { toast.error("Please set a pickup location"); return false; }
+    if (!estimatedValue || parseFloat(estimatedValue) <= 0) { toast.error("Please enter an estimated value for this donation"); return false; }
     for (let i = 0; i < items.length; i++) {
       const item = items[i];
       if (!item.foodName) { toast.error(`Item ${i + 1}: Food name is required`); return false; }
@@ -187,6 +196,7 @@ const CreateDonation = () => {
         contact_phone: contactPhone || null,
         donation_type: donationType,
         notes: batchNotes || null,
+        estimated_value: parseFloat(estimatedValue),
       }).select("id").single();
 
       if (batchError) {
@@ -245,14 +255,38 @@ const CreateDonation = () => {
 
       logger.vendor.info("Donation created successfully", { batchId: batch.id, itemCount: items.length }, user.id);
 
-      // Notify NGOs whose preferences match the donation categories
+      // Notify NGOs whose preferences match the donation - using full scoring algorithm
       const vendorName = vendorProfile?.business_name || vendorProfile?.name || "A vendor";
-      const itemCategories = [...new Set(items.map(item => item.category).filter(Boolean))];
+      const notificationItems = items.map(item => {
+        const daysToExpiry = Math.ceil((new Date(item.expiryDate).getTime() - Date.now()) / 86400000);
+        let spoilageRisk = "low";
+        if (daysToExpiry <= 0) spoilageRisk = "expired";
+        else if (daysToExpiry <= 1) spoilageRisk = "high";
+        else if (daysToExpiry <= 3) spoilageRisk = "medium";
+
+        return {
+          category: item.category,
+          storage_condition: item.storageCondition,
+          quantity: parseFloat(item.quantity) || 0,
+          spoilage_risk: spoilageRisk,
+        };
+      });
+
       try {
-        await notifyNgosOfNewDonation(vendorName, itemCategories, pickupLocation.address, batch.id);
-        logger.vendor.info("Matching NGOs notified of new donation", { batchId: batch.id, categories: itemCategories }, user.id);
+        await notifyNgosOfNewDonation(
+          vendorName,
+          notificationItems,
+          pickupLocation.address,
+          batch.id,
+          {
+            pickup_lat: pickupLocation.lat,
+            pickup_lng: pickupLocation.lng,
+            pickup_date: pickupDate,
+          }
+        );
+        logger.vendor.info("Matching NGOs notified of new donation", { batchId: batch.id, notifiedBasedOnScoring: true }, user.id);
       } catch (notifyErr) {
-        console.error("Failed to notify NGOs:", notifyErr);
+        logger.vendor.warn("Failed to notify NGOs", { error: (notifyErr as Error).message }, user.id);
       }
 
       toast.success(`Donation batch created with ${items.length} item(s)!`);
@@ -344,6 +378,26 @@ const CreateDonation = () => {
               <Label>Overall Notes</Label>
               <Textarea value={batchNotes} onChange={(e) => setBatchNotes(e.target.value)} placeholder="Any general notes about this donation..." />
             </div>
+
+            <div className="space-y-2">
+              <Label>Estimated Value (RM) *</Label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">RM</span>
+                <Input
+                  type="number"
+                  min="1"
+                  step="0.01"
+                  value={estimatedValue}
+                  onChange={(e) => setEstimatedValue(e.target.value)}
+                  placeholder="0.00"
+                  className="pl-10"
+                  required
+                />
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Enter your estimated total value of all food items in this donation batch.
+              </p>
+            </div>
           </div>
 
           {/* Section B: Food Items */}
@@ -388,7 +442,7 @@ const CreateDonation = () => {
                       <Select value={item.category} onValueChange={(v) => updateItem(item.id, "category", v)}>
                         <SelectTrigger className="h-9 text-sm"><SelectValue placeholder="Select" /></SelectTrigger>
                         <SelectContent>
-                          {categories.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                          {FOOD_CATEGORIES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
                         </SelectContent>
                       </Select>
                     </div>
@@ -402,7 +456,7 @@ const CreateDonation = () => {
                         <Select value={item.unit} onValueChange={(v) => updateItem(item.id, "unit", v)}>
                           <SelectTrigger className="h-9 text-sm"><SelectValue /></SelectTrigger>
                           <SelectContent>
-                            {units.map(u => <SelectItem key={u} value={u}>{u}</SelectItem>)}
+                            {FOOD_UNITS.map(u => <SelectItem key={u} value={u}>{u}</SelectItem>)}
                           </SelectContent>
                         </Select>
                       </div>
@@ -420,10 +474,9 @@ const CreateDonation = () => {
                       <Select value={item.storageCondition} onValueChange={(v) => updateItem(item.id, "storageCondition", v)}>
                         <SelectTrigger className="h-9 text-sm"><SelectValue /></SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="room_temperature">Room Temperature</SelectItem>
-                          <SelectItem value="refrigerated">Refrigerated</SelectItem>
-                          <SelectItem value="frozen">Frozen</SelectItem>
-                          <SelectItem value="keep_warm">Keep Warm</SelectItem>
+                          {STORAGE_CONDITIONS.map(s => (
+                            <SelectItem key={s} value={s}>{STORAGE_CONDITION_LABELS[s]}</SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                     </div>
@@ -432,9 +485,9 @@ const CreateDonation = () => {
                       <Select value={item.halalStatus} onValueChange={(v) => updateItem(item.id, "halalStatus", v)}>
                         <SelectTrigger className="h-9 text-sm"><SelectValue /></SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="halal">Halal</SelectItem>
-                          <SelectItem value="non_halal">Non-Halal</SelectItem>
-                          <SelectItem value="unknown">Unknown</SelectItem>
+                          {HALAL_STATUS.map(h => (
+                            <SelectItem key={h} value={h}>{HALAL_STATUS_LABELS[h]}</SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                     </div>
