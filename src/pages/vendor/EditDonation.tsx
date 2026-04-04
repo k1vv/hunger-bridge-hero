@@ -13,6 +13,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import LocationPickerMap, { type PickedLocation } from "@/components/LocationPickerMap";
 import {
   FOOD_CATEGORIES,
+  FOOD_UNITS,
   STORAGE_CONDITIONS,
   STORAGE_CONDITION_LABELS,
   HALAL_STATUS,
@@ -32,12 +33,14 @@ interface ItemForm {
   expiry_time: string;
   spoilage_risk: string;
   notes: string;
+  estimated_value: string;
 }
 
 const emptyItem = (): ItemForm => ({
   food_name: "", category: FOOD_CATEGORIES[0], quantity: 1, unit: "packs",
   halal_status: "unknown", storage_condition: "room_temperature",
   expiry_date: "", expiry_time: "", spoilage_risk: "low", notes: "",
+  estimated_value: "",
 });
 
 const EditDonation = () => {
@@ -100,6 +103,7 @@ const EditDonation = () => {
         expiry_time: item.expiry_time || "",
         spoilage_risk: item.spoilage_risk || "low",
         notes: item.notes || "",
+        estimated_value: item.estimated_value?.toString() || "",
       }));
       setItems(existingItems.length > 0 ? existingItems : [emptyItem()]);
     }
@@ -121,6 +125,7 @@ const EditDonation = () => {
     e.preventDefault();
     if (items.length === 0) { toast.error("Add at least one food item"); return; }
     if (items.some(i => !i.food_name || !i.category)) { toast.error("Please fill in all item details"); return; }
+    if (items.some(i => !i.estimated_value || parseFloat(i.estimated_value) <= 0)) { toast.error("Please enter an estimated value for all items"); return; }
 
     setSaving(true);
     try {
@@ -159,6 +164,7 @@ const EditDonation = () => {
             expiry_time: item.expiry_time || null,
             spoilage_risk: item.spoilage_risk,
             notes: item.notes || null,
+            estimated_value: item.estimated_value ? parseFloat(item.estimated_value) : null,
           }).eq("id", item.id);
           if (error) throw error;
         } else {
@@ -175,6 +181,7 @@ const EditDonation = () => {
             expiry_time: item.expiry_time || null,
             spoilage_risk: item.spoilage_risk,
             notes: item.notes || null,
+            estimated_value: item.estimated_value ? parseFloat(item.estimated_value) : null,
           });
           if (error) throw error;
         }
@@ -271,7 +278,7 @@ const EditDonation = () => {
                     <Select value={item.unit} onValueChange={(v) => updateItem(index, "unit", v)}>
                       <SelectTrigger><SelectValue /></SelectTrigger>
                       <SelectContent>
-                        {["packs", "pieces", "kg", "loaves", "cups", "bottles", "bowls", "sticks", "slices"].map(u => (
+                        {FOOD_UNITS.map(u => (
                           <SelectItem key={u} value={u}>{u}</SelectItem>
                         ))}
                       </SelectContent>
@@ -311,9 +318,27 @@ const EditDonation = () => {
                     </Select>
                   </div>
                 </div>
-                <div className="space-y-1">
-                  <Label className="text-xs">Notes</Label>
-                  <Input value={item.notes} onChange={(e) => updateItem(index, "notes", e.target.value)} placeholder="Optional notes..." />
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Label className="text-xs">Estimated Value (RM) *</Label>
+                    <div className="relative">
+                      <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">RM</span>
+                      <Input
+                        type="number"
+                        min="0.01"
+                        step="0.01"
+                        value={item.estimated_value}
+                        onChange={(e) => updateItem(index, "estimated_value", e.target.value)}
+                        placeholder="0.00"
+                        className="pl-9"
+                        required
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Notes</Label>
+                    <Input value={item.notes} onChange={(e) => updateItem(index, "notes", e.target.value)} placeholder="Optional notes..." />
+                  </div>
                 </div>
               </div>
             ))}

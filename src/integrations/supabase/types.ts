@@ -274,6 +274,7 @@ export type Database = {
           claimed_at: string | null
           claimed_by: string | null
           created_at: string
+          estimated_value: number | null
           expiry_date: string | null
           expiry_time: string | null
           food_name: string
@@ -294,6 +295,7 @@ export type Database = {
           claimed_at?: string | null
           claimed_by?: string | null
           created_at?: string
+          estimated_value?: number | null
           expiry_date?: string | null
           expiry_time?: string | null
           food_name: string
@@ -314,6 +316,7 @@ export type Database = {
           claimed_at?: string | null
           claimed_by?: string | null
           created_at?: string
+          estimated_value?: number | null
           expiry_date?: string | null
           expiry_time?: string | null
           food_name?: string

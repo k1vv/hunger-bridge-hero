@@ -9,20 +9,9 @@ import { toast } from "sonner";
 import { Trash2, MapPin, Clock, Package, Leaf, Thermometer, Phone, User, Calendar, Edit, DollarSign, FileText } from "lucide-react";
 import { motion } from "framer-motion";
 
-/* Simple estimated value per item (RM) based on category */
-const estimateItemValue = (item: any): number => {
-  const baseRates: Record<string, number> = {
-    "Cooked Food": 5,
-    "Bakery": 3,
-    "Fruits": 4,
-    "Vegetables": 3,
-    "Beverages": 2.5,
-    "Rice": 4,
-    "Canned Food": 6,
-    "Dry Goods": 5,
-  };
-  const rate = baseRates[item.category] ?? 3;
-  return rate * (item.quantity || 1);
+/* Get item value from database */
+const getItemValue = (item: any): number => {
+  return item.estimated_value ?? 0;
 };
 
 const DonationDetails = () => {
@@ -64,7 +53,7 @@ const DonationDetails = () => {
   const canEdit = batch.status === "available" && batch.vendor_id === user?.id;
   const canDelete = batch.status === "available" && batch.vendor_id === user?.id;
   const items = (batch as any).donation_items || [];
-  const totalEstimatedValue = items.reduce((sum: number, item: any) => sum + estimateItemValue(item), 0);
+  const totalEstimatedValue = items.reduce((sum: number, item: any) => sum + getItemValue(item), 0);
 
   const spoilageColor = (risk: string) => {
     switch (risk) {
@@ -137,14 +126,14 @@ const DonationDetails = () => {
         </div>
 
         {/* Notes */}
-        {batch.notes && (
-          <div className="rounded-xl border border-border bg-card p-5 space-y-2">
-            <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
-              <FileText className="h-4 w-4" /> Notes
-            </h3>
-            <p className="text-sm text-muted-foreground">{batch.notes}</p>
-          </div>
-        )}
+        <div className="rounded-xl border border-border bg-card p-5 space-y-2">
+          <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+            <FileText className="h-4 w-4" /> Notes
+          </h3>
+          <p className={`text-sm ${batch.notes ? "text-muted-foreground" : "text-muted-foreground/50 italic"}`}>
+            {batch.notes || "No notes"}
+          </p>
+        </div>
 
         {/* Estimated Value Breakdown */}
         <div className="rounded-xl border border-border bg-card p-5 space-y-3">
@@ -155,7 +144,7 @@ const DonationDetails = () => {
             {items.map((item: any) => (
               <div key={item.id} className="flex items-center justify-between text-sm">
                 <span className="text-muted-foreground">{item.food_name} ({item.quantity} {item.unit})</span>
-                <span className="font-medium text-foreground">RM {estimateItemValue(item).toFixed(2)}</span>
+                <span className="font-medium text-foreground">RM {getItemValue(item).toFixed(2)}</span>
               </div>
             ))}
             <div className="border-t border-border pt-2 flex items-center justify-between text-sm font-semibold">

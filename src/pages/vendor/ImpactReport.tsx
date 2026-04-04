@@ -6,7 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { CheckCircle, Package, TrendingUp, UtensilsCrossed, DollarSign, Leaf, Utensils } from "lucide-react";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { calculateFoodValue, calculateMealsServed, calculateCO2Saved, formatImpactValue } from "@/lib/impact-calculations";
+import { calculateMealsServed, calculateCO2Saved, formatImpactValue } from "@/lib/impact-calculations";
 
 const ImpactReport = () => {
   const { user } = useAuth();
@@ -51,7 +51,7 @@ const ImpactReport = () => {
   // Items by status
   const completedItems = allItems.filter((i: any) => i.status === "completed");
 
-  // Calculate impact metrics using proper calculations
+  // Calculate impact metrics - using actual estimated_value from database
   const impactMetrics = (() => {
     let totalValueRM = 0;
     let totalMeals = 0;
@@ -65,7 +65,8 @@ const ImpactReport = () => {
       const unit = item.unit || "kg";
       const category = item.category || "Other";
 
-      const value = calculateFoodValue(qty, unit, category);
+      // Use actual estimated_value from database (user-entered)
+      const value = item.estimated_value ?? 0;
       const meals = calculateMealsServed(qty, unit, category);
       const co2 = calculateCO2Saved(qty, unit, category);
 

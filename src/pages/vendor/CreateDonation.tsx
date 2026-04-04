@@ -40,6 +40,7 @@ interface FoodItem {
   imageFile: File | null;
   imagePreview: string | null;
   notes: string;
+  estimatedValue: string;
 }
 
 const emptyItem = (): FoodItem => ({
@@ -55,6 +56,7 @@ const emptyItem = (): FoodItem => ({
   imageFile: null,
   imagePreview: null,
   notes: "",
+  estimatedValue: "",
 });
 
 // Using centralized constants from @/lib/constants
@@ -83,7 +85,6 @@ const CreateDonation = () => {
   const [contactPhone, setContactPhone] = useState("");
   const [donationType, setDonationType] = useState("immediate");
   const [batchNotes, setBatchNotes] = useState("");
-  const [estimatedValue, setEstimatedValue] = useState("");
 
   // Section B: Food items
   const [items, setItems] = useState<FoodItem[]>([emptyItem()]);
@@ -118,13 +119,13 @@ const CreateDonation = () => {
 
   const validate = (): boolean => {
     if (!pickupLocation.address) { toast.error("Please set a pickup location"); return false; }
-    if (!estimatedValue || parseFloat(estimatedValue) <= 0) { toast.error("Please enter an estimated value for this donation"); return false; }
     for (let i = 0; i < items.length; i++) {
       const item = items[i];
       if (!item.foodName) { toast.error(`Item ${i + 1}: Food name is required`); return false; }
       if (!item.category) { toast.error(`Item ${i + 1}: Category is required`); return false; }
       if (!item.quantity || parseFloat(item.quantity) <= 0) { toast.error(`Item ${i + 1}: Quantity must be > 0`); return false; }
       if (!item.expiryDate) { toast.error(`Item ${i + 1}: Expiry date is required`); return false; }
+      if (!item.estimatedValue || parseFloat(item.estimatedValue) <= 0) { toast.error(`Item ${i + 1}: Estimated value is required`); return false; }
     }
     return true;
   };
@@ -162,6 +163,7 @@ const CreateDonation = () => {
         imageFile: null,
         imagePreview: null,
         notes: "",
+        estimatedValue: "", // Don't copy estimated value from template
       }));
       setItems(newItems);
     }
@@ -196,7 +198,6 @@ const CreateDonation = () => {
         contact_phone: contactPhone || null,
         donation_type: donationType,
         notes: batchNotes || null,
-        estimated_value: parseFloat(estimatedValue),
       }).select("id").single();
 
       if (batchError) {
@@ -243,6 +244,7 @@ const CreateDonation = () => {
           image_url: imageUrl,
           notes: item.notes || null,
           spoilage_risk: spoilageRisk,
+          estimated_value: parseFloat(item.estimatedValue),
         };
       }));
 
@@ -378,26 +380,6 @@ const CreateDonation = () => {
               <Label>Overall Notes</Label>
               <Textarea value={batchNotes} onChange={(e) => setBatchNotes(e.target.value)} placeholder="Any general notes about this donation..." />
             </div>
-
-            <div className="space-y-2">
-              <Label>Estimated Value (RM) *</Label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">RM</span>
-                <Input
-                  type="number"
-                  min="1"
-                  step="0.01"
-                  value={estimatedValue}
-                  onChange={(e) => setEstimatedValue(e.target.value)}
-                  placeholder="0.00"
-                  className="pl-10"
-                  required
-                />
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Enter your estimated total value of all food items in this donation batch.
-              </p>
-            </div>
           </div>
 
           {/* Section B: Food Items */}
@@ -493,9 +475,26 @@ const CreateDonation = () => {
                     </div>
                   </div>
 
-                  <div className="space-y-1.5">
-                    <Label className="text-xs">Notes</Label>
-                    <Input value={item.notes} onChange={(e) => updateItem(item.id, "notes", e.target.value)} placeholder="Optional notes for this item" className="h-9 text-sm" />
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Estimated Value (RM) *</Label>
+                      <div className="relative">
+                        <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">RM</span>
+                        <Input
+                          type="number"
+                          min="0.01"
+                          step="0.01"
+                          value={item.estimatedValue}
+                          onChange={(e) => updateItem(item.id, "estimatedValue", e.target.value)}
+                          placeholder="0.00"
+                          className="h-9 text-sm pl-9"
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Notes</Label>
+                      <Input value={item.notes} onChange={(e) => updateItem(item.id, "notes", e.target.value)} placeholder="Optional notes" className="h-9 text-sm" />
+                    </div>
                   </div>
 
                   {/* Image */}
