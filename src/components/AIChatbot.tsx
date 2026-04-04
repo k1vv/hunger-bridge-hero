@@ -237,10 +237,10 @@ export function AIChatbot() {
                 )}
               </div>
 
-              {/* Quick Actions - show only when there are few messages */}
-              {messages.length <= 1 && !isLoading && (
-                <div className="mt-4 space-y-2">
-                  <p className="text-xs text-muted-foreground">Quick questions:</p>
+              {/* Quick Actions - always visible for easy access */}
+              {!isLoading && (
+                <div className="mt-4 space-y-2 border-t border-border pt-4">
+                  <p className="text-xs text-muted-foreground font-medium">Quick questions:</p>
                   <div className="flex flex-wrap gap-2">
                     {quickActions.map((action, i) => (
                       <button

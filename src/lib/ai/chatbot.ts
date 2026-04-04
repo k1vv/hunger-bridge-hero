@@ -183,6 +183,18 @@ function getFallbackResponse(message: string, context?: ChatContext): string {
     if (msgLower.includes("cancel")) {
       return "To cancel a claim:\n1. Go to 'My Claims'\n2. Find the item\n3. Click 'Cancel' button\n\nThe item will become available for other NGOs.";
     }
+    if (msgLower.includes("distribution") || msgLower.includes("distribute")) {
+      return "To record a distribution:\n1. Go to 'Distribution' in the sidebar\n2. Select items from your inventory\n3. Choose a beneficiary or group\n4. Enter quantity and click 'Record Distribution'\n\nThis tracks who received the food.";
+    }
+    if (msgLower.includes("verify") && context?.role === "admin") {
+      return "To verify users:\n1. Go to 'User Management'\n2. Click on a pending user\n3. Review their documents\n4. Click 'Approve' or 'Reject'\n\nUsers will be notified of your decision.";
+    }
+    if (msgLower.includes("analytics") || msgLower.includes("view analytics")) {
+      return "To view analytics:\n1. Go to 'Analytics' in the sidebar\n2. See platform-wide statistics\n3. View donation trends, user activity\n4. Export reports if needed";
+    }
+    if (msgLower.includes("announcement")) {
+      return "To manage announcements:\n1. Go to 'Announcements' in admin panel\n2. Click 'Create Announcement'\n3. Enter title and message\n4. Select target audience (all, vendors, NGOs)\n5. Click 'Publish'";
+    }
   }
 
   // What questions
@@ -192,6 +204,12 @@ function getFallbackResponse(message: string, context?: ChatContext): string {
     }
     if (msgLower.includes("status")) {
       return "Donation statuses:\n• Available: Open for claiming\n• Partially Claimed: Some items claimed\n• Reserved: All items claimed\n• Completed: All pickups done";
+    }
+    if (msgLower.includes("impact") || msgLower.includes("my impact")) {
+      return "Your impact shows the positive difference you've made! Go to 'Reports' in the sidebar to see:\n• Total food donated/received\n• Meals provided\n• CO₂ emissions prevented\n• People helped";
+    }
+    if (msgLower.includes("foodbridge")) {
+      return "FoodBridge is a food donation platform that connects vendors (restaurants, hotels, supermarkets) with NGOs to reduce food waste. Vendors donate surplus food, NGOs claim and distribute it to those in need. Everyone benefits!";
     }
   }
 
@@ -212,6 +230,8 @@ export function getQuickActions(context?: ChatContext): string[] {
     return [
       "How do I create a donation?",
       "Where can I see my pickups?",
+      "How do I confirm pickup?",
+      "What's my impact?",
       "Navigating the app",
     ];
   }
@@ -220,6 +240,17 @@ export function getQuickActions(context?: ChatContext): string[] {
     return [
       "How do I claim food?",
       "Where's my inventory?",
+      "How to record distribution?",
+      "What are recommendations?",
+      "Navigating the app",
+    ];
+  }
+
+  if (context?.role === "admin") {
+    return [
+      "How to verify users?",
+      "How to view analytics?",
+      "How to manage announcements?",
       "Navigating the app",
     ];
   }
@@ -227,6 +258,7 @@ export function getQuickActions(context?: ChatContext): string[] {
   return [
     "How does FoodBridge work?",
     "How to get started?",
+    "What is FoodBridge?",
     "Navigating the app",
   ];
 }
