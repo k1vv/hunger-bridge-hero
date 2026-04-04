@@ -21,6 +21,8 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import foodbridgeLogoNgo from "@/assets/foodbridge-logo-ngo.jpeg";
+import foodbridgeLogoAdmin from "@/assets/foodbridge-logo-admin.jpeg";
+import foodbridgeLogoVendor from "@/assets/foodbridge-logo.png";
 
 type NavItem = { label: string; icon: any; path: string };
 
@@ -90,6 +92,7 @@ const AppSidebar = () => {
   const navItems = role === "admin" ? adminNav : role === "ngo" ? ngoNav : vendorNav;
   const roleLabel = role === "admin" ? "Admin Portal" : role === "ngo" ? "NGO Portal" : "Vendor Portal";
   const theme = themeClasses[role || "vendor"];
+  const logo = role === "admin" ? foodbridgeLogoAdmin : role === "ngo" ? foodbridgeLogoNgo : foodbridgeLogoVendor;
 
   const handleLogout = async () => {
     const loginPath = role === "admin" ? "/login/admin" : role === "ngo" ? "/login/ngo" : "/login/vendor";
@@ -100,7 +103,7 @@ const AppSidebar = () => {
   return (
     <aside className="fixed left-0 top-0 z-40 flex h-screen w-64 flex-col border-r border-border bg-card">
       <div className="flex items-center gap-2.5 px-6 py-5 border-b border-border">
-        <img src={foodbridgeLogoNgo} alt="FoodBridge" className="h-11 w-11 rounded-lg object-contain" />
+        <img src={logo} alt="FoodBridge" className="h-11 w-11 rounded-lg object-contain" />
         <div>
           <h1 className="text-base font-bold text-foreground tracking-tight">FoodBridge</h1>
           <p className="text-[11px] text-muted-foreground">Waste → Nourishment</p>

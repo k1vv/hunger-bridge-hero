@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Shield } from "lucide-react";
-import foodbridgeLogoNgo from "@/assets/foodbridge-logo-ngo.jpeg";
+import foodbridgeLogoAdmin from "@/assets/foodbridge-logo-admin.jpeg";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -50,7 +50,7 @@ const LoginAdmin = () => {
     <div className="min-h-screen flex items-center justify-center bg-background px-4">
       <div className="w-full max-w-md space-y-6">
         <div className="flex flex-col items-center gap-2">
-          <img src={foodbridgeLogoNgo} alt="FoodBridge" className="h-12 w-12 rounded-xl object-contain" />
+          <img src={foodbridgeLogoAdmin} alt="FoodBridge" className="h-20 w-20 rounded-xl object-contain" />
           <h1 className="text-2xl font-bold text-foreground">FoodBridge</h1>
           <div className="flex items-center gap-2 rounded-full bg-destructive/10 px-3 py-1">
             <Shield className="h-4 w-4 text-destructive" />
