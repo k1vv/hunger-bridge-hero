@@ -323,7 +323,7 @@ const RecommendedNGOs = ({ items, vendorLat, vendorLng }: RecommendedNGOsProps) 
           </span>
         </div>
 
-      <ScrollArea className="max-h-64">
+      <ScrollArea className="h-64 overflow-auto">
         <div className="space-y-2">
           {recommended.map((ngo, idx) => {
             const score = ngo.score.total;
