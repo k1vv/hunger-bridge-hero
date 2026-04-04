@@ -138,8 +138,8 @@ describe("cn (className utility)", () => {
 
   describe("real-world usage patterns", () => {
     it("handles component variant pattern", () => {
-      const variant = "primary";
-      const size = "large";
+      const variant: string = "primary";
+      const size: string = "large";
       const disabled = false;
 
       const result = cn(

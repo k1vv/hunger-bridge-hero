@@ -16,10 +16,20 @@ const RecommendedNGOs = ({ items, vendorLat, vendorLng }: RecommendedNGOsProps) 
   const { data: ngos = [], isLoading } = useQuery({
     queryKey: ["recommended_ngos"],
     queryFn: async () => {
+      // Fetch NGO role user IDs first (no FK between profiles and user_roles)
+      const { data: ngoRoles, error: rolesError } = await supabase
+        .from("user_roles")
+        .select("user_id")
+        .eq("role", "ngo");
+
+      if (rolesError) throw rolesError;
+      const ngoUserIds = (ngoRoles || []).map((r) => r.user_id);
+      if (ngoUserIds.length === 0) return [];
+
       const { data, error } = await supabase
         .from("profiles")
-        .select("*, user_roles!inner(role)")
-        .eq("user_roles.role", "ngo")
+        .select("*")
+        .in("id", ngoUserIds)
         .eq("verification_status", "verified");
 
       if (error) throw error;
