@@ -37,7 +37,7 @@ const vendorNav: NavItem[] = [
 ];
 
 const ngoNav: NavItem[] = [
-  { label: "Dashboard", icon: LayoutDashboard, path: "/" },
+  { label: "Dashboard", icon: LayoutDashboard, path: "/dashboard" },
   { label: "Available Donations", icon: Search, path: "/ngo/available" },
   { label: "My Claims", icon: ClipboardList, path: "/ngo/claims" },
   { label: "Inventory", icon: Package, path: "/ngo/inventory" },
