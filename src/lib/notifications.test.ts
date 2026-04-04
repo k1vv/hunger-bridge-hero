@@ -356,8 +356,8 @@ describe("Notifications", () => {
     };
 
     beforeEach(() => {
-      // Mock getUsersByRole to return NGO IDs
-      mockEq.mockResolvedValue({
+      // Mock getUsersByRole to return NGO IDs (first .eq() call)
+      mockEq.mockResolvedValueOnce({
         data: [{ user_id: "ngo1" }, { user_id: "ngo2" }, { user_id: "ngo3" }],
         error: null,
       });
