@@ -298,14 +298,11 @@ describe("Notifications", () => {
         "complaint-id-123"
       );
 
-      expect(mockInsert).toHaveBeenCalledWith(
-        expect.objectContaining({
-          type: "complaint_resolved",
-          title: "Complaint Resolved",
-          message: expect.stringContaining("quality complaint"),
-          message: expect.stringContaining(shortResolution),
-        })
-      );
+      const callArg = mockInsert.mock.calls[0][0];
+      expect(callArg.type).toBe("complaint_resolved");
+      expect(callArg.title).toBe("Complaint Resolved");
+      expect(callArg.message).toContain("quality complaint");
+      expect(callArg.message).toContain(shortResolution);
     });
 
     it("truncates long resolution text", async () => {
