@@ -100,7 +100,7 @@ const AppSidebar = () => {
   return (
     <aside className="fixed left-0 top-0 z-40 flex h-screen w-64 flex-col border-r border-border bg-card">
       <div className="flex items-center gap-2.5 px-6 py-5 border-b border-border">
-        <img src={foodbridgeLogoNgo} alt="FoodBridge" className="h-9 w-9 rounded-lg object-contain" />
+        <img src={foodbridgeLogoNgo} alt="FoodBridge" className="h-11 w-11 rounded-lg object-contain" />
         <div>
           <h1 className="text-base font-bold text-foreground tracking-tight">FoodBridge</h1>
           <p className="text-[11px] text-muted-foreground">Waste → Nourishment</p>

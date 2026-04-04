@@ -5,12 +5,12 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/contexts/AuthContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
+import AppLayout from "@/components/AppLayout";
 
 // Shared pages
 import NotFound from "./pages/shared/NotFound";
 import RoleDashboard from "./pages/shared/RoleDashboard";
 import FileComplaint from "./pages/shared/FileComplaint";
-
 
 // Vendor pages
 import LoginVendor from "./pages/vendor/LoginVendor";
@@ -46,7 +46,6 @@ import Complaints from "./pages/admin/Complaints";
 import AdminAnalytics from "./pages/admin/AdminAnalytics";
 import Announcements from "./pages/admin/Announcements";
 import RulesSettings from "./pages/admin/RulesSettings";
-
 import AdminSettings from "./pages/admin/AdminSettings";
 import UserDetail from "./pages/admin/UserDetail";
 
@@ -60,51 +59,51 @@ const App = () => (
       <BrowserRouter>
         <AuthProvider>
           <Routes>
-            {/* Auth */}
+            {/* Auth (no sidebar) */}
             <Route path="/login/vendor" element={<LoginVendor />} />
             <Route path="/login/ngo" element={<LoginNGO />} />
             <Route path="/login/admin" element={<LoginAdmin />} />
             <Route path="/signup/vendor" element={<SignupVendor />} />
             <Route path="/signup/ngo" element={<SignupNGO />} />
 
-            {/* Role-based dashboard redirect */}
-            <Route path="/" element={<ProtectedRoute><RoleDashboard /></ProtectedRoute>} />
+            {/* All authenticated routes share AppLayout so sidebar never remounts */}
+            <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
+              <Route path="/" element={<RoleDashboard />} />
 
+              {/* Vendor routes */}
+              <Route path="/vendor/dashboard" element={<ProtectedRoute allowedRoles={["vendor"]}><VendorDashboard /></ProtectedRoute>} />
+              <Route path="/vendor/create" element={<ProtectedRoute allowedRoles={["vendor"]}><CreateDonation /></ProtectedRoute>} />
+              <Route path="/vendor/donations" element={<ProtectedRoute allowedRoles={["vendor"]}><MyDonations /></ProtectedRoute>} />
+              <Route path="/vendor/donations/:id" element={<ProtectedRoute allowedRoles={["vendor"]}><DonationDetails /></ProtectedRoute>} />
+              <Route path="/vendor/donations/:id/edit" element={<ProtectedRoute allowedRoles={["vendor"]}><EditDonation /></ProtectedRoute>} />
+              <Route path="/vendor/pickups" element={<ProtectedRoute allowedRoles={["vendor"]}><PickupManagement /></ProtectedRoute>} />
+              <Route path="/vendor/profile" element={<ProtectedRoute allowedRoles={["vendor"]}><VendorProfile /></ProtectedRoute>} />
+              <Route path="/vendor/impact" element={<ProtectedRoute allowedRoles={["vendor"]}><ImpactReport /></ProtectedRoute>} />
+              <Route path="/vendor/complaints" element={<ProtectedRoute allowedRoles={["vendor"]}><FileComplaint /></ProtectedRoute>} />
 
-            {/* Vendor routes */}
-            <Route path="/vendor/dashboard" element={<ProtectedRoute allowedRoles={["vendor"]}><VendorDashboard /></ProtectedRoute>} />
-            <Route path="/vendor/create" element={<ProtectedRoute allowedRoles={["vendor"]}><CreateDonation /></ProtectedRoute>} />
-            <Route path="/vendor/donations" element={<ProtectedRoute allowedRoles={["vendor"]}><MyDonations /></ProtectedRoute>} />
-            <Route path="/vendor/donations/:id" element={<ProtectedRoute allowedRoles={["vendor"]}><DonationDetails /></ProtectedRoute>} />
-            <Route path="/vendor/donations/:id/edit" element={<ProtectedRoute allowedRoles={["vendor"]}><EditDonation /></ProtectedRoute>} />
-            <Route path="/vendor/pickups" element={<ProtectedRoute allowedRoles={["vendor"]}><PickupManagement /></ProtectedRoute>} />
-            <Route path="/vendor/profile" element={<ProtectedRoute allowedRoles={["vendor"]}><VendorProfile /></ProtectedRoute>} />
-            <Route path="/vendor/impact" element={<ProtectedRoute allowedRoles={["vendor"]}><ImpactReport /></ProtectedRoute>} />
-            <Route path="/vendor/complaints" element={<ProtectedRoute allowedRoles={["vendor"]}><FileComplaint /></ProtectedRoute>} />
+              {/* NGO routes */}
+              <Route path="/ngo/dashboard" element={<ProtectedRoute allowedRoles={["ngo"]}><NgoDashboard /></ProtectedRoute>} />
+              <Route path="/ngo/available" element={<ProtectedRoute allowedRoles={["ngo"]}><AvailableDonations /></ProtectedRoute>} />
+              <Route path="/ngo/claims" element={<ProtectedRoute allowedRoles={["ngo"]}><MyClaims /></ProtectedRoute>} />
+              <Route path="/ngo/collection" element={<ProtectedRoute allowedRoles={["ngo"]}><CollectionManagement /></ProtectedRoute>} />
+              <Route path="/ngo/inventory" element={<ProtectedRoute allowedRoles={["ngo"]}><NgoInventory /></ProtectedRoute>} />
+              <Route path="/ngo/distribution" element={<ProtectedRoute allowedRoles={["ngo"]}><Distribution /></ProtectedRoute>} />
+              <Route path="/ngo/reports" element={<ProtectedRoute allowedRoles={["ngo"]}><NgoReports /></ProtectedRoute>} />
+              <Route path="/ngo/profile" element={<ProtectedRoute allowedRoles={["ngo"]}><NgoProfile /></ProtectedRoute>} />
+              <Route path="/ngo/complaints" element={<ProtectedRoute allowedRoles={["ngo"]}><FileComplaint /></ProtectedRoute>} />
 
-            {/* NGO routes */}
-            <Route path="/ngo/dashboard" element={<ProtectedRoute allowedRoles={["ngo"]}><NgoDashboard /></ProtectedRoute>} />
-            <Route path="/ngo/available" element={<ProtectedRoute allowedRoles={["ngo"]}><AvailableDonations /></ProtectedRoute>} />
-            <Route path="/ngo/claims" element={<ProtectedRoute allowedRoles={["ngo"]}><MyClaims /></ProtectedRoute>} />
-            <Route path="/ngo/collection" element={<ProtectedRoute allowedRoles={["ngo"]}><CollectionManagement /></ProtectedRoute>} />
-            <Route path="/ngo/inventory" element={<ProtectedRoute allowedRoles={["ngo"]}><NgoInventory /></ProtectedRoute>} />
-            <Route path="/ngo/distribution" element={<ProtectedRoute allowedRoles={["ngo"]}><Distribution /></ProtectedRoute>} />
-            <Route path="/ngo/reports" element={<ProtectedRoute allowedRoles={["ngo"]}><NgoReports /></ProtectedRoute>} />
-            <Route path="/ngo/profile" element={<ProtectedRoute allowedRoles={["ngo"]}><NgoProfile /></ProtectedRoute>} />
-            <Route path="/ngo/complaints" element={<ProtectedRoute allowedRoles={["ngo"]}><FileComplaint /></ProtectedRoute>} />
-
-            {/* Admin routes */}
-            <Route path="/admin/dashboard" element={<ProtectedRoute allowedRoles={["admin"]}><AdminDashboard /></ProtectedRoute>} />
-            <Route path="/admin/users" element={<ProtectedRoute allowedRoles={["admin"]}><UserManagement /></ProtectedRoute>} />
-            <Route path="/admin/users/:id" element={<ProtectedRoute allowedRoles={["admin"]}><UserDetail /></ProtectedRoute>} />
-            <Route path="/admin/donations" element={<ProtectedRoute allowedRoles={["admin"]}><DonationManagement /></ProtectedRoute>} />
-            <Route path="/admin/claims" element={<ProtectedRoute allowedRoles={["admin"]}><ClaimsMonitoring /></ProtectedRoute>} />
-            <Route path="/admin/complaints" element={<ProtectedRoute allowedRoles={["admin"]}><Complaints /></ProtectedRoute>} />
-            <Route path="/admin/analytics" element={<ProtectedRoute allowedRoles={["admin"]}><AdminAnalytics /></ProtectedRoute>} />
-            <Route path="/admin/announcements" element={<ProtectedRoute allowedRoles={["admin"]}><Announcements /></ProtectedRoute>} />
-            <Route path="/admin/rules" element={<ProtectedRoute allowedRoles={["admin"]}><RulesSettings /></ProtectedRoute>} />
-            
-            <Route path="/admin/settings" element={<ProtectedRoute allowedRoles={["admin"]}><AdminSettings /></ProtectedRoute>} />
+              {/* Admin routes */}
+              <Route path="/admin/dashboard" element={<ProtectedRoute allowedRoles={["admin"]}><AdminDashboard /></ProtectedRoute>} />
+              <Route path="/admin/users" element={<ProtectedRoute allowedRoles={["admin"]}><UserManagement /></ProtectedRoute>} />
+              <Route path="/admin/users/:id" element={<ProtectedRoute allowedRoles={["admin"]}><UserDetail /></ProtectedRoute>} />
+              <Route path="/admin/donations" element={<ProtectedRoute allowedRoles={["admin"]}><DonationManagement /></ProtectedRoute>} />
+              <Route path="/admin/claims" element={<ProtectedRoute allowedRoles={["admin"]}><ClaimsMonitoring /></ProtectedRoute>} />
+              <Route path="/admin/complaints" element={<ProtectedRoute allowedRoles={["admin"]}><Complaints /></ProtectedRoute>} />
+              <Route path="/admin/analytics" element={<ProtectedRoute allowedRoles={["admin"]}><AdminAnalytics /></ProtectedRoute>} />
+              <Route path="/admin/announcements" element={<ProtectedRoute allowedRoles={["admin"]}><Announcements /></ProtectedRoute>} />
+              <Route path="/admin/rules" element={<ProtectedRoute allowedRoles={["admin"]}><RulesSettings /></ProtectedRoute>} />
+              <Route path="/admin/settings" element={<ProtectedRoute allowedRoles={["admin"]}><AdminSettings /></ProtectedRoute>} />
+            </Route>
 
             <Route path="*" element={<NotFound />} />
           </Routes>
