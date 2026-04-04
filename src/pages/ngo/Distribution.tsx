@@ -122,6 +122,8 @@ const Distribution = () => {
   const [step, setStep] = useState(1); // Multi-step form
   const [photos, setPhotos] = useState<{ file: File; preview: string }[]>([]);
   const photoInputRef = useRef<HTMLInputElement>(null);
+  const [selectedBeneficiaries, setSelectedBeneficiaries] = useState<string[]>([]);
+  const [beneficiarySearchTerm, setBeneficiarySearchTerm] = useState("");
 
   // ============================================================================
   // QUERIES
@@ -153,6 +155,22 @@ const Distribution = () => {
         .select("*")
         .eq("ngo_user_id", user!.id)
         .order("distribution_date", { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!user,
+  });
+
+  // Fetch registered beneficiaries
+  const { data: beneficiaries = [] } = useQuery({
+    queryKey: ["ngo_beneficiaries", user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("beneficiaries")
+        .select("*")
+        .eq("ngo_id", user!.id)
+        .eq("is_active", true)
+        .order("name", { ascending: true });
       if (error) throw error;
       return data;
     },
@@ -317,16 +335,37 @@ const Distribution = () => {
       };
 
       // Create distribution record
-      const { error } = await supabase.from("distribution_records").insert({
+      const { data: distributionRecord, error } = await supabase.from("distribution_records").insert({
         ngo_user_id: user!.id,
         beneficiary_group: beneficiaryType || "General Distribution",
         quantity_distributed: selectedItems.reduce((sum, s) => sum + s.quantity, 0).toString(),
         distribution_date: distributionDate,
         photo_urls: photoUrls.length > 0 ? photoUrls : null,
         notes: JSON.stringify(distributionData),
-      });
+      }).select().single();
 
       if (error) throw error;
+
+      // Link selected beneficiaries to this distribution
+      if (selectedBeneficiaries.length > 0 && distributionRecord) {
+        const beneficiaryRecords = selectedBeneficiaries.map((beneficiaryId) => ({
+          distribution_id: distributionRecord.id,
+          beneficiary_id: beneficiaryId,
+          items_received: selectedItems.map((s) => ({
+            item_name: s.item.food_title,
+            quantity: s.quantity,
+            unit: "units",
+          })),
+        }));
+
+        const { error: linkError } = await supabase
+          .from("distribution_beneficiaries")
+          .insert(beneficiaryRecords);
+
+        if (linkError) {
+          logger.ngo.error("Failed to link beneficiaries", linkError.message, {}, user?.id);
+        }
+      }
 
       // Update inventory quantities
       for (const selected of selectedItems) {
@@ -375,6 +414,21 @@ const Distribution = () => {
     setSelectedItems([]);
     setPhotos([]);
     setStep(1);
+    setSelectedBeneficiaries([]);
+    setBeneficiarySearchTerm("");
+  };
+
+  // Filter beneficiaries based on search
+  const filteredBeneficiaries = beneficiaries.filter((b: any) =>
+    b.name.toLowerCase().includes(beneficiarySearchTerm.toLowerCase()) ||
+    (b.phone && b.phone.includes(beneficiarySearchTerm))
+  );
+
+  // Toggle beneficiary selection
+  const toggleBeneficiary = (id: string) => {
+    setSelectedBeneficiaries((prev) =>
+      prev.includes(id) ? prev.filter((b) => b !== id) : [...prev, id]
+    );
   };
 
   const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -838,6 +892,72 @@ const Distribution = () => {
                 />
               </div>
 
+              {/* Beneficiary Selection (Optional) */}
+              {beneficiaries.length > 0 && (
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-2">
+                    <User className="h-3 w-3" /> Link to Registered Beneficiaries (Optional)
+                  </Label>
+                  <p className="text-xs text-muted-foreground mb-2">
+                    Select specific beneficiaries to track individual distribution history.
+                  </p>
+
+                  <div className="relative mb-2">
+                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
+                    <Input
+                      placeholder="Search beneficiaries..."
+                      value={beneficiarySearchTerm}
+                      onChange={(e) => setBeneficiarySearchTerm(e.target.value)}
+                      className="pl-8 h-8 text-sm"
+                    />
+                  </div>
+
+                  <div className="max-h-32 overflow-y-auto border border-border rounded-lg p-2 space-y-1">
+                    {filteredBeneficiaries.length === 0 ? (
+                      <p className="text-xs text-muted-foreground text-center py-2">
+                        {beneficiarySearchTerm ? "No matches found" : "No beneficiaries registered"}
+                      </p>
+                    ) : (
+                      filteredBeneficiaries.map((b: any) => (
+                        <div
+                          key={b.id}
+                          onClick={() => toggleBeneficiary(b.id)}
+                          className={`flex items-center justify-between p-2 rounded-lg cursor-pointer transition-colors ${
+                            selectedBeneficiaries.includes(b.id)
+                              ? "bg-accent/10 border border-accent/30"
+                              : "hover:bg-muted border border-transparent"
+                          }`}
+                        >
+                          <div className="flex items-center gap-2">
+                            <div className={`h-5 w-5 rounded border flex items-center justify-center ${
+                              selectedBeneficiaries.includes(b.id)
+                                ? "bg-accent border-accent text-accent-foreground"
+                                : "border-muted-foreground"
+                            }`}>
+                              {selectedBeneficiaries.includes(b.id) && (
+                                <CheckCircle className="h-3 w-3" />
+                              )}
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium">{b.name}</p>
+                              <p className="text-xs text-muted-foreground">
+                                {b.category} · {b.household_size} member(s)
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+
+                  {selectedBeneficiaries.length > 0 && (
+                    <p className="text-xs text-accent">
+                      {selectedBeneficiaries.length} beneficiary(s) selected
+                    </p>
+                  )}
+                </div>
+              )}
+
               {/* Distribution Photos */}
               <div className="space-y-2">
                 <Label>Photos (Optional)</Label>
@@ -1099,6 +1219,22 @@ const Distribution = () => {
                 {notes && (
                   <div className="pt-2 border-t border-border">
                     <p className="text-sm text-muted-foreground">{notes}</p>
+                  </div>
+                )}
+
+                {selectedBeneficiaries.length > 0 && (
+                  <div className="pt-2 border-t border-border">
+                    <p className="text-sm font-medium mb-1">Linked Beneficiaries ({selectedBeneficiaries.length})</p>
+                    <div className="flex flex-wrap gap-1">
+                      {selectedBeneficiaries.map((id) => {
+                        const b = beneficiaries.find((b: any) => b.id === id);
+                        return b ? (
+                          <span key={id} className="text-xs bg-accent/10 px-2 py-0.5 rounded-full text-accent">
+                            {b.name}
+                          </span>
+                        ) : null;
+                      })}
+                    </div>
                   </div>
                 )}
               </div>

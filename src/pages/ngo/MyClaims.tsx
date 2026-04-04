@@ -7,12 +7,45 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
-import { Package, MapPin, Clock, Truck, CheckCircle, ChevronDown, ChevronUp, User, Phone, Utensils } from "lucide-react";
+import { Package, MapPin, Clock, Truck, CheckCircle, ChevronDown, ChevronUp, User, Phone, Utensils, XCircle, History } from "lucide-react";
 import { logger } from "@/lib/logger";
 import { notifyVendorOfClaimCancellation } from "@/lib/notifications";
 import PickupLocationMap from "@/components/PickupLocationMap";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 const statusFilters = ["all", "pending_pickup", "completed", "cancelled"] as const;
+
+interface CancellationRecord {
+  id: string;
+  item_id: string;
+  batch_id: string;
+  food_name: string;
+  quantity: number | null;
+  unit: string | null;
+  category: string | null;
+  cancelled_at: string;
+  reason: string | null;
+  donation_batches?: {
+    batch_number: string;
+    pickup_location: string;
+    pickup_date: string;
+    vendor_id: string;
+    profiles?: {
+      name: string | null;
+      business_name: string | null;
+    } | null;
+  } | null;
+}
 
 const MyClaims = () => {
   const { user } = useAuth();
@@ -83,6 +116,44 @@ const MyClaims = () => {
     enabled: !!user,
   });
 
+  // Fetch cancellation history
+  const { data: cancellations = [] } = useQuery({
+    queryKey: ["ngo_cancellations", user?.id],
+    queryFn: async () => {
+      logger.ngo.info("Fetching cancellation history", undefined, user?.id);
+      const { data, error } = await supabase
+        .from("claim_cancellations")
+        .select("*, donation_batches(batch_number, pickup_location, pickup_date, vendor_id)")
+        .eq("ngo_id", user!.id)
+        .order("cancelled_at", { ascending: false });
+
+      if (error) {
+        logger.ngo.error("Failed to fetch cancellations", error.message, { code: error.code }, user?.id);
+        throw error;
+      }
+
+      // Fetch vendor profiles
+      const vendorIds = [...new Set((data || []).map((c: any) => c.donation_batches?.vendor_id).filter(Boolean))];
+      let profileMap = new Map();
+      if (vendorIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from("profiles")
+          .select("id, name, business_name")
+          .in("id", vendorIds);
+        profileMap = new Map((profiles || []).map((p: any) => [p.id, p]));
+      }
+
+      return (data || []).map((c: any) => ({
+        ...c,
+        donation_batches: c.donation_batches ? {
+          ...c.donation_batches,
+          profiles: profileMap.get(c.donation_batches.vendor_id) || null,
+        } : null,
+      })) as CancellationRecord[];
+    },
+    enabled: !!user,
+  });
+
   const grouped = claimedItems.reduce((acc: Record<string, { batch: any; items: any[] }>, item: any) => {
     const batchId = item.batch_id;
     if (!acc[batchId]) {
@@ -105,23 +176,50 @@ const MyClaims = () => {
     mutationFn: async (item: any) => {
       logger.ngo.info("Cancelling item claim", { itemId: item.id, batchId: item.batch_id, foodName: item.food_name }, user?.id);
 
-      // Set status to "cancelled" but keep claimed_by so NGO can see their cancelled claims
-      const { error } = await supabase.from("donation_items").update({ status: "cancelled" }).eq("id", item.id);
+      // 1. Log cancellation for history
+      const { error: logError } = await supabase
+        .from("claim_cancellations")
+        .insert({
+          item_id: item.id,
+          batch_id: item.batch_id,
+          ngo_id: user!.id,
+          food_name: item.food_name,
+          quantity: item.quantity,
+          unit: item.unit,
+          category: item.category,
+        });
+
+      if (logError) {
+        logger.ngo.error("Failed to log cancellation", logError.message, { itemId: item.id }, user?.id);
+        // Continue anyway - logging failure shouldn't block the cancellation
+      }
+
+      // 2. Reset item to available so other NGOs can claim it
+      const { error } = await supabase
+        .from("donation_items")
+        .update({ status: "available", claimed_by: null, claimed_at: null })
+        .eq("id", item.id);
       if (error) {
         logger.ngo.error("Failed to cancel item claim", error.message, { itemId: item.id, code: error.code }, user?.id);
         throw error;
       }
-      logger.ngo.info("Successfully cancelled item claim", { itemId: item.id }, user?.id);
+      logger.ngo.info("Successfully cancelled item claim - item now available", { itemId: item.id }, user?.id);
 
-      // Check remaining active items (claimed or available) to update batch status
-      const { data: activeItems } = await supabase
+      // 3. Check remaining claimed items to update batch status
+      const { data: claimedItems } = await supabase
         .from("donation_items")
-        .select("id, status")
+        .select("id")
         .eq("batch_id", item.batch_id)
-        .in("status", ["available", "claimed"]);
+        .eq("status", "claimed");
 
-      const availableCount = (activeItems || []).filter((i: any) => i.status === "available").length;
-      const claimedCount = (activeItems || []).filter((i: any) => i.status === "claimed").length;
+      const { data: availableItems } = await supabase
+        .from("donation_items")
+        .select("id")
+        .eq("batch_id", item.batch_id)
+        .eq("status", "available");
+
+      const claimedCount = claimedItems?.length || 0;
+      const availableCount = availableItems?.length || 0;
 
       let newBatchStatus = "available";
       if (claimedCount > 0 && availableCount > 0) {
@@ -134,6 +232,7 @@ const MyClaims = () => {
 
       await supabase.from("donation_batches").update({ status: newBatchStatus }).eq("id", item.batch_id);
 
+      // 4. Notify vendor
       const ngoName = ngoProfile?.business_name || ngoProfile?.name || "An NGO";
       try {
         await notifyVendorOfClaimCancellation(
@@ -148,14 +247,103 @@ const MyClaims = () => {
       }
     },
     onSuccess: () => {
-      toast.success("Item claim cancelled");
+      toast.success("Claim cancelled - item is now available for others");
       queryClient.invalidateQueries({ queryKey: ["ngo_claimed_items"] });
+      queryClient.invalidateQueries({ queryKey: ["ngo_cancellations"] });
+      queryClient.invalidateQueries({ queryKey: ["all_available_batches"] });
+    },
+    onError: (err: any) => toast.error(err.message),
+  });
+
+  // Cancel all items in a batch
+  const cancelBatchMutation = useMutation({
+    mutationFn: async ({ batch, items }: { batch: any; items: any[] }) => {
+      const claimedItems = items.filter((i: any) => i.status === "claimed");
+      if (claimedItems.length === 0) return;
+
+      logger.ngo.info("Cancelling all items in batch", { batchId: batch.id, itemCount: claimedItems.length }, user?.id);
+
+      // 1. Log all cancellations for history
+      const cancellationRecords = claimedItems.map((item: any) => ({
+        item_id: item.id,
+        batch_id: item.batch_id,
+        ngo_id: user!.id,
+        food_name: item.food_name,
+        quantity: item.quantity,
+        unit: item.unit,
+        category: item.category,
+      }));
+
+      const { error: logError } = await supabase
+        .from("claim_cancellations")
+        .insert(cancellationRecords);
+
+      if (logError) {
+        logger.ngo.error("Failed to log batch cancellations", logError.message, { batchId: batch.id }, user?.id);
+      }
+
+      // 2. Reset all items to available
+      const itemIds = claimedItems.map((i: any) => i.id);
+      const { error } = await supabase
+        .from("donation_items")
+        .update({ status: "available", claimed_by: null, claimed_at: null })
+        .in("id", itemIds);
+
+      if (error) {
+        logger.ngo.error("Failed to cancel batch items", error.message, { batchId: batch.id }, user?.id);
+        throw error;
+      }
+
+      // 3. Check if any other NGO still has claims on this batch
+      const { data: remainingClaimed } = await supabase
+        .from("donation_items")
+        .select("id")
+        .eq("batch_id", batch.id)
+        .eq("status", "claimed");
+
+      const { data: availableItems } = await supabase
+        .from("donation_items")
+        .select("id")
+        .eq("batch_id", batch.id)
+        .eq("status", "available");
+
+      let newBatchStatus = "available";
+      if ((remainingClaimed?.length || 0) > 0 && (availableItems?.length || 0) > 0) {
+        newBatchStatus = "partially_claimed";
+      } else if ((remainingClaimed?.length || 0) > 0) {
+        newBatchStatus = "reserved";
+      } else if ((availableItems?.length || 0) > 0) {
+        newBatchStatus = "available";
+      }
+
+      await supabase.from("donation_batches").update({ status: newBatchStatus }).eq("id", batch.id);
+
+      // 4. Notify vendor
+      const ngoName = ngoProfile?.business_name || ngoProfile?.name || "An NGO";
+      try {
+        await notifyVendorOfClaimCancellation(
+          batch.vendor_id,
+          ngoName,
+          `${claimedItems.length} items`,
+          batch.batch_number || "Unknown",
+          batch.id
+        );
+      } catch (notifyErr) {
+        console.error("Failed to send notification:", notifyErr);
+      }
+    },
+    onSuccess: () => {
+      toast.success("All claims in batch cancelled");
+      queryClient.invalidateQueries({ queryKey: ["ngo_claimed_items"] });
+      queryClient.invalidateQueries({ queryKey: ["ngo_cancellations"] });
+      queryClient.invalidateQueries({ queryKey: ["all_available_batches"] });
     },
     onError: (err: any) => toast.error(err.message),
   });
 
   const pendingPickups = claimedItems.filter((item: any) => item.status === "claimed").length;
   const completedItems = claimedItems.filter((item: any) => item.status === "completed").length;
+  const cancelledCount = cancellations.length;
 
   const toggleBatch = (batchId: string) => {
     setExpandedBatch((prev) => (prev === batchId ? null : batchId));
@@ -163,7 +351,7 @@ const MyClaims = () => {
 
   return (
     <PageLayout title="My Claims" subtitle="View and manage your claimed items">
-      {claimedItems.length > 0 && (
+      {(claimedItems.length > 0 || cancellations.length > 0) && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
           <div className="rounded-xl border border-accent/30 bg-accent/5 p-4">
             <div className="flex items-center gap-2 text-accent mb-1">
@@ -178,6 +366,13 @@ const MyClaims = () => {
               <span className="text-xs">Completed</span>
             </div>
             <p className="text-2xl font-bold text-success">{completedItems}</p>
+          </div>
+          <div className="rounded-xl border border-muted-foreground/30 bg-muted/30 p-4">
+            <div className="flex items-center gap-2 text-muted-foreground mb-1">
+              <XCircle className="h-4 w-4" />
+              <span className="text-xs">Cancelled</span>
+            </div>
+            <p className="text-2xl font-bold text-muted-foreground">{cancelledCount}</p>
           </div>
         </div>
       )}
@@ -302,6 +497,42 @@ const MyClaims = () => {
 
               {/* Items list */}
               <div className="p-4 space-y-2">
+                {/* Cancel All button - only show if there are pending items */}
+                {group.items.filter((i: any) => i.status === "claimed").length > 1 && (
+                  <div className="flex justify-end mb-2">
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground"
+                          disabled={cancelBatchMutation.isPending}
+                        >
+                          <XCircle className="h-4 w-4 mr-1" />
+                          Cancel All ({group.items.filter((i: any) => i.status === "claimed").length})
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Cancel All Claims</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            This will cancel all {group.items.filter((i: any) => i.status === "claimed").length} pending claims in batch {batch?.batch_number}. The items will become available for other NGOs. The vendor will be notified.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Keep Claims</AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={() => cancelBatchMutation.mutate({ batch, items: group.items })}
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                          >
+                            Cancel All Claims
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </div>
+                )}
+
                 {group.items.map((item: any) => (
                   <div
                     key={item.id}
@@ -356,7 +587,73 @@ const MyClaims = () => {
             </motion.div>
           );
         })}
-        {filteredGroups.length === 0 && <div className="text-center py-12 text-sm text-muted-foreground">No claims found</div>}
+        {filteredGroups.length === 0 && filter !== "cancelled" && (
+          <div className="text-center py-12 text-sm text-muted-foreground">No claims found</div>
+        )}
+
+        {/* Cancellation History - shown when cancelled filter is selected */}
+        {filter === "cancelled" && (
+          <div className="space-y-4">
+            <div className="flex items-center gap-2 mb-4">
+              <History className="h-4 w-4 text-muted-foreground" />
+              <h3 className="text-sm font-semibold text-foreground">Cancellation History</h3>
+            </div>
+
+            {cancellations.length === 0 ? (
+              <div className="text-center py-12 text-sm text-muted-foreground">
+                No cancelled claims in history
+              </div>
+            ) : (
+              cancellations.map((cancellation: CancellationRecord, i: number) => (
+                <motion.div
+                  key={cancellation.id}
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: i * 0.03 }}
+                  className="rounded-xl border border-muted bg-muted/20 p-4"
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted">
+                        <XCircle className="h-5 w-5 text-muted-foreground" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-foreground">{cancellation.food_name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {cancellation.quantity} {cancellation.unit} · {cancellation.category}
+                        </p>
+                        <div className="flex flex-wrap gap-2 mt-1 text-xs text-muted-foreground">
+                          {cancellation.donation_batches && (
+                            <>
+                              <span className="flex items-center gap-1">
+                                <Package className="h-3 w-3" />
+                                {cancellation.donation_batches.batch_number}
+                              </span>
+                              <span className="flex items-center gap-1">
+                                <User className="h-3 w-3" />
+                                {cancellation.donation_batches.profiles?.business_name ||
+                                 cancellation.donation_batches.profiles?.name || "Vendor"}
+                              </span>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <Badge variant="outline" className="text-xs text-muted-foreground border-muted-foreground">
+                        Cancelled
+                      </Badge>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {new Date(cancellation.cancelled_at).toLocaleDateString()} at{" "}
+                        {new Date(cancellation.cancelled_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                      </p>
+                    </div>
+                  </div>
+                </motion.div>
+              ))
+            )}
+          </div>
+        )}
       </div>
     </PageLayout>
   );

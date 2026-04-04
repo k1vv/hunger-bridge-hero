@@ -37,6 +37,7 @@ import NgoInventory from "./pages/ngo/NgoInventory";
 import Distribution from "./pages/ngo/Distribution";
 import NgoReports from "./pages/ngo/NgoReports";
 import NgoProfile from "./pages/ngo/NgoProfile";
+import BeneficiaryManagement from "./pages/ngo/BeneficiaryManagement";
 
 // Admin pages
 import LoginAdmin from "./pages/admin/LoginAdmin";
@@ -95,6 +96,7 @@ const App = () => (
               <Route path="/ngo/distribution" element={<ProtectedRoute allowedRoles={["ngo"]}><Distribution /></ProtectedRoute>} />
               <Route path="/ngo/reports" element={<ProtectedRoute allowedRoles={["ngo"]}><NgoReports /></ProtectedRoute>} />
               <Route path="/ngo/profile" element={<ProtectedRoute allowedRoles={["ngo"]}><NgoProfile /></ProtectedRoute>} />
+              <Route path="/ngo/beneficiaries" element={<ProtectedRoute allowedRoles={["ngo"]}><BeneficiaryManagement /></ProtectedRoute>} />
               <Route path="/ngo/complaints" element={<ProtectedRoute allowedRoles={["ngo"]}><FileComplaint /></ProtectedRoute>} />
 
               {/* Admin routes */}

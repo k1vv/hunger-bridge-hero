@@ -124,6 +124,67 @@ export type Database = {
           },
         ]
       }
+      claim_cancellations: {
+        Row: {
+          id: string
+          item_id: string
+          batch_id: string
+          ngo_id: string
+          food_name: string
+          quantity: number | null
+          unit: string | null
+          category: string | null
+          cancelled_at: string
+          reason: string | null
+        }
+        Insert: {
+          id?: string
+          item_id: string
+          batch_id: string
+          ngo_id: string
+          food_name: string
+          quantity?: number | null
+          unit?: string | null
+          category?: string | null
+          cancelled_at?: string
+          reason?: string | null
+        }
+        Update: {
+          id?: string
+          item_id?: string
+          batch_id?: string
+          ngo_id?: string
+          food_name?: string
+          quantity?: number | null
+          unit?: string | null
+          category?: string | null
+          cancelled_at?: string
+          reason?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "claim_cancellations_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "donation_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "claim_cancellations_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "donation_batches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "claim_cancellations_ngo_id_fkey"
+            columns: ["ngo_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
       complaints: {
         Row: {
           complaint_type: string
@@ -282,6 +343,7 @@ export type Database = {
           id: string
           image_url: string | null
           notes: string | null
+          pickup_photo_url: string | null
           quantity: number
           spoilage_risk: string | null
           status: string
@@ -303,6 +365,7 @@ export type Database = {
           id?: string
           image_url?: string | null
           notes?: string | null
+          pickup_photo_url?: string | null
           quantity: number
           spoilage_risk?: string | null
           status?: string
@@ -324,6 +387,7 @@ export type Database = {
           id?: string
           image_url?: string | null
           notes?: string | null
+          pickup_photo_url?: string | null
           quantity?: number
           spoilage_risk?: string | null
           status?: string
@@ -737,6 +801,98 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      beneficiaries: {
+        Row: {
+          id: string
+          ngo_id: string
+          name: string
+          phone: string | null
+          household_size: number
+          category: string
+          address: string | null
+          notes: string | null
+          is_active: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          ngo_id: string
+          name: string
+          phone?: string | null
+          household_size?: number
+          category?: string
+          address?: string | null
+          notes?: string | null
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          ngo_id?: string
+          name?: string
+          phone?: string | null
+          household_size?: number
+          category?: string
+          address?: string | null
+          notes?: string | null
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "beneficiaries_ngo_id_fkey"
+            columns: ["ngo_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      distribution_beneficiaries: {
+        Row: {
+          id: string
+          distribution_id: string
+          beneficiary_id: string
+          items_received: Json | null
+          notes: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          distribution_id: string
+          beneficiary_id: string
+          items_received?: Json | null
+          notes?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          distribution_id?: string
+          beneficiary_id?: string
+          items_received?: Json | null
+          notes?: string | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "distribution_beneficiaries_distribution_id_fkey"
+            columns: ["distribution_id"]
+            isOneToOne: false
+            referencedRelation: "distribution_records"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "distribution_beneficiaries_beneficiary_id_fkey"
+            columns: ["beneficiary_id"]
+            isOneToOne: false
+            referencedRelation: "beneficiaries"
+            referencedColumns: ["id"]
+          }
+        ]
       }
     }
     Views: {

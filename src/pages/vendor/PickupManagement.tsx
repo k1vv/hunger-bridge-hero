@@ -5,10 +5,11 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { Truck, User, MapPin, Clock, CheckCircle2, Package, XCircle } from "lucide-react";
+import { Truck, User, MapPin, Clock, CheckCircle2, Package, XCircle, Camera, X, Upload } from "lucide-react";
 import { motion } from "framer-motion";
 import { notifyNgoOfPickupComplete, notifyNgoOfClaimCancelledByVendor } from "@/lib/notifications";
 import { logger } from "@/lib/logger";
+import { useState, useRef } from "react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -20,6 +21,15 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 
 const CANCEL_TIMEOUT_MS = 60 * 60 * 1000; // 1 hour
 
@@ -45,6 +55,75 @@ const getTimeRemaining = (claimedAt: string | null): string | null => {
 const PickupManagement = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+
+  // State for pickup confirmation dialog
+  const [confirmingItem, setConfirmingItem] = useState<any>(null);
+  const [pickupPhoto, setPickupPhoto] = useState<File | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error("Photo must be less than 5MB");
+        return;
+      }
+      setPickupPhoto(file);
+      setPhotoPreview(URL.createObjectURL(file));
+    }
+  };
+
+  const clearPhoto = () => {
+    setPickupPhoto(null);
+    if (photoPreview) URL.revokeObjectURL(photoPreview);
+    setPhotoPreview(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const closeConfirmDialog = () => {
+    setConfirmingItem(null);
+    clearPhoto();
+  };
+
+  const handleConfirmWithPhoto = async () => {
+    if (!confirmingItem) return;
+    setIsUploading(true);
+
+    try {
+      let photoUrl: string | undefined;
+
+      // Upload photo if provided
+      if (pickupPhoto) {
+        const fileExt = pickupPhoto.name.split(".").pop();
+        const fileName = `${confirmingItem.id}_${Date.now()}.${fileExt}`;
+        const filePath = `${user?.id}/${fileName}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from("pickup-photos")
+          .upload(filePath, pickupPhoto);
+
+        if (uploadError) {
+          logger.vendor.error("Failed to upload pickup photo", uploadError.message, {}, user?.id);
+          toast.error("Failed to upload photo, but proceeding with confirmation");
+        } else {
+          const { data: urlData } = supabase.storage
+            .from("pickup-photos")
+            .getPublicUrl(filePath);
+          photoUrl = urlData.publicUrl;
+          logger.vendor.info("Pickup photo uploaded", { photoUrl }, user?.id);
+        }
+      }
+
+      await confirmHandover.mutateAsync({ item: confirmingItem, photoUrl });
+      closeConfirmDialog();
+    } catch (error) {
+      logger.vendor.error("Handover confirmation failed", (error as any).message, {}, user?.id);
+    } finally {
+      setIsUploading(false);
+    }
+  };
 
   const { data: vendorProfile } = useQuery({
     queryKey: ["vendor_profile", user?.id],
@@ -156,13 +235,17 @@ const PickupManagement = () => {
   });
 
   const confirmHandover = useMutation({
-    mutationFn: async (item: any) => {
-      logger.vendor.info("Confirming handover", { itemId: item.id, foodName: item.food_name }, user?.id);
+    mutationFn: async ({ item, photoUrl }: { item: any; photoUrl?: string }) => {
+      logger.vendor.info("Confirming handover", { itemId: item.id, foodName: item.food_name, hasPhoto: !!photoUrl }, user?.id);
 
-      // 1. Update donation item status to completed
+      // 1. Update donation item status to completed (with optional photo)
+      const updateData: any = { status: "completed" };
+      if (photoUrl) {
+        updateData.pickup_photo_url = photoUrl;
+      }
       const { error } = await supabase
         .from("donation_items")
-        .update({ status: "completed" })
+        .update(updateData)
         .eq("id", item.id);
       if (error) throw error;
 
@@ -315,7 +398,7 @@ const PickupManagement = () => {
                 <div className="flex justify-end">
                   <Button
                     size="sm"
-                    onClick={() => group.items.forEach((item: any) => confirmHandover.mutate(item))}
+                    onClick={() => group.items.forEach((item: any) => confirmHandover.mutate({ item }))}
                     disabled={confirmHandover.isPending}
                   >
                     <CheckCircle2 className="h-4 w-4 mr-1" /> Confirm All Pickups
@@ -393,7 +476,7 @@ const PickupManagement = () => {
 
                       <Button
                         size="sm"
-                        onClick={() => confirmHandover.mutate(item)}
+                        onClick={() => setConfirmingItem(item)}
                         disabled={confirmHandover.isPending}
                       >
                         <CheckCircle2 className="h-4 w-4 mr-1" /> Confirm Pickup
@@ -412,6 +495,83 @@ const PickupManagement = () => {
           </div>
         )}
       </div>
+
+      {/* Pickup Confirmation Dialog with Optional Photo */}
+      <Dialog open={!!confirmingItem} onOpenChange={(open) => !open && closeConfirmDialog()}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Confirm Pickup</DialogTitle>
+            <DialogDescription>
+              Confirm that <strong>{confirmingItem?.ngo_profile?.business_name || confirmingItem?.ngo_profile?.name || "the NGO"}</strong> has picked up <strong>{confirmingItem?.food_name}</strong>.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="pickup-photo" className="text-sm font-medium">
+                Pickup Photo <span className="text-muted-foreground">(optional)</span>
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                Upload a photo of the pickup for documentation purposes.
+              </p>
+
+              {!photoPreview ? (
+                <div
+                  onClick={() => fileInputRef.current?.click()}
+                  className="flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-border p-6 cursor-pointer hover:border-primary/50 hover:bg-muted/50 transition-colors"
+                >
+                  <Camera className="h-8 w-8 text-muted-foreground" />
+                  <span className="text-sm text-muted-foreground">Click to upload photo</span>
+                  <span className="text-xs text-muted-foreground">Max 5MB</span>
+                </div>
+              ) : (
+                <div className="relative">
+                  <img
+                    src={photoPreview}
+                    alt="Pickup preview"
+                    className="w-full h-48 object-cover rounded-lg border border-border"
+                  />
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    size="icon"
+                    className="absolute top-2 right-2 h-8 w-8"
+                    onClick={clearPhoto}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              )}
+
+              <input
+                ref={fileInputRef}
+                type="file"
+                id="pickup-photo"
+                accept="image/*"
+                className="hidden"
+                onChange={handlePhotoSelect}
+              />
+            </div>
+          </div>
+
+          <DialogFooter className="flex gap-2 sm:gap-0">
+            <Button variant="outline" onClick={closeConfirmDialog} disabled={isUploading}>
+              Cancel
+            </Button>
+            <Button onClick={handleConfirmWithPhoto} disabled={isUploading}>
+              {isUploading ? (
+                <>
+                  <Upload className="h-4 w-4 mr-1 animate-pulse" /> Confirming...
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 className="h-4 w-4 mr-1" /> Confirm Pickup
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </PageLayout>
   );
 };
