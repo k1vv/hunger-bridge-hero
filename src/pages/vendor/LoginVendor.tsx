@@ -63,7 +63,7 @@ const LoginVendor = () => {
 
     setLoading(false);
     toast.success("Vendor login successful!");
-    navigate("/");
+    navigate("/dashboard");
   };
 
   return (

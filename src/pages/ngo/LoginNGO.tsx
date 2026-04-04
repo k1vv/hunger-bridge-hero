@@ -63,7 +63,7 @@ const LoginNGO = () => {
 
     setLoading(false);
     toast.success("NGO login successful!");
-    navigate("/");
+    navigate("/dashboard");
   };
 
   return (
