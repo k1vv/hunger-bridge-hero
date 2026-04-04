@@ -652,11 +652,15 @@ export type Database = {
           food_types: string[] | null
           has_multiple_outlets: boolean
           id: string
+          is_suspended: boolean
           name: string | null
           operation_hours: string | null
           phone: string | null
+          rejection_reason: string | null
           service_area: string | null
           storage_capacity: string | null
+          suspended_at: string | null
+          suspension_reason: string | null
           updated_at: string
           verification_status: string
         }
@@ -672,11 +676,15 @@ export type Database = {
           food_types?: string[] | null
           has_multiple_outlets?: boolean
           id: string
+          is_suspended?: boolean
           name?: string | null
           operation_hours?: string | null
           phone?: string | null
+          rejection_reason?: string | null
           service_area?: string | null
           storage_capacity?: string | null
+          suspended_at?: string | null
+          suspension_reason?: string | null
           updated_at?: string
           verification_status?: string
         }
@@ -692,11 +700,15 @@ export type Database = {
           food_types?: string[] | null
           has_multiple_outlets?: boolean
           id?: string
+          is_suspended?: boolean
           name?: string | null
           operation_hours?: string | null
           phone?: string | null
+          rejection_reason?: string | null
           service_area?: string | null
           storage_capacity?: string | null
+          suspended_at?: string | null
+          suspension_reason?: string | null
           updated_at?: string
           verification_status?: string
         }
