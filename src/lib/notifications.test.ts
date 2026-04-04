@@ -41,7 +41,7 @@ describe("Notifications", () => {
       in: mockIn,
     });
     mockEq.mockResolvedValue({ data: [], error: null });
-    mockIn.mockResolvedValue({ data: [], error: null });
+    mockIn.mockReturnValue({ eq: mockEq });
   });
 
   // ============================================================================
