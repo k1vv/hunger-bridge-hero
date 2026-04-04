@@ -21,6 +21,8 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import foodbridgeLogoNgo from "@/assets/foodbridge-logo-ngo.jpeg";
+import foodbridgeLogoAdmin from "@/assets/foodbridge-logo-admin.jpeg";
+import foodbridgeLogoVendor from "@/assets/foodbridge-logo.png";
 
 type NavItem = { label: string; icon: any; path: string };
 
