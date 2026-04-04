@@ -40,7 +40,8 @@ describe("Notifications", () => {
       eq: mockEq,
       in: mockIn,
     });
-    mockEq.mockResolvedValue({ data: [], error: null });
+    mockEq.mockReset();
+      mockEq.mockResolvedValue({ data: [], error: null });
     mockIn.mockReturnValue({ eq: mockEq });
   });
 
@@ -190,6 +191,7 @@ describe("Notifications", () => {
     });
 
     it("returns empty array when no users found", async () => {
+      mockEq.mockReset();
       mockEq.mockResolvedValue({ data: [], error: null });
 
       const result = await getUsersByRole("admin");
@@ -364,6 +366,7 @@ describe("Notifications", () => {
     });
 
     it("returns early if no NGOs found", async () => {
+      mockEq.mockReset();
       mockEq.mockResolvedValue({ data: [], error: null });
 
       await notifyNgosOfNewDonation(
