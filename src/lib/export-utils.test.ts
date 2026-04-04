@@ -64,7 +64,7 @@ describe("exportToCSV", () => {
     exportToCSV(data, testColumns, "test-export");
 
     expect(mockCreateObjectURL).toHaveBeenCalled();
-    const blobArg = mockCreateObjectURL.mock.calls[0][0] as Blob;
+    const blobArg = (mockCreateObjectURL.mock.calls as any[][])[0][0] as Blob;
     expect(blobArg.type).toBe("text/csv;charset=utf-8;");
   });
 
