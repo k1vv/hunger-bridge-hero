@@ -47,10 +47,11 @@ const VendorDashboard = () => {
   }
 
   // 🔥 FILTER BY ACTUAL STATUS
+  // Batch statuses: available → partially_claimed → reserved → completed
   const available = batches.filter((b: any) => b.status === "available");
-  const claimed = batches.filter((b: any) => b.status === "claimed");
+  const partiallyClaimed = batches.filter((b: any) => b.status === "partially_claimed");
+  const reserved = batches.filter((b: any) => b.status === "reserved"); // All items claimed, pending pickup
   const completed = batches.filter((b: any) => b.status === "completed");
-  const cancelled = batches.filter((b: any) => b.status === "cancelled");
 
   const totalItems = batches.reduce(
     (sum: number, b: any) => sum + (b.donation_items?.length || 0),
@@ -66,13 +67,13 @@ const VendorDashboard = () => {
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-8">
         <StatCard
           title="Available"
-          value={available.length}
+          value={available.length + partiallyClaimed.length}
           icon={UtensilsCrossed}
           variant="primary"
         />
         <StatCard
-          title="Claimed"
-          value={claimed.length}
+          title="Pending Pickup"
+          value={reserved.length}
           icon={Clock}
           variant="accent"
         />
@@ -127,14 +128,16 @@ const VendorDashboard = () => {
                       className={`text-xs capitalize ${
                         batch.status === "completed"
                           ? "border-success text-success"
-                          : batch.status === "claimed"
+                          : batch.status === "reserved"
                             ? "border-accent text-accent"
-                            : batch.status === "cancelled"
-                              ? "border-destructive text-destructive"
-                              : ""
+                            : batch.status === "partially_claimed"
+                              ? "border-info text-info"
+                              : batch.status === "cancelled" || batch.status === "expired"
+                                ? "border-destructive text-destructive"
+                                : ""
                       }`}
                     >
-                      {batch.status}
+                      {batch.status === "reserved" ? "Pending Pickup" : batch.status === "partially_claimed" ? "Partially Claimed" : batch.status}
                     </Badge>
 
                     <Badge variant="outline" className="text-xs capitalize">
