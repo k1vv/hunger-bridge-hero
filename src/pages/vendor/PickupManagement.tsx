@@ -65,6 +65,7 @@ const PickupManagement = () => {
   const [pickupPhoto, setPickupPhoto] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [isConfirmingAll, setIsConfirmingAll] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -267,7 +268,7 @@ const PickupManagement = () => {
           .eq("id", item.batch.id);
       }
 
-      // 3. Auto-add item to NGO's inventory
+      // 3. Auto-add item to NGO's inventory (prevent duplicates)
       const vendorName = vendorProfile?.business_name || vendorProfile?.name || "A vendor";
       const sourceInfo = JSON.stringify({
         source_type: "donation",
@@ -277,23 +278,35 @@ const PickupManagement = () => {
         pickup_location: item.batch.pickup_location,
       });
 
-      const { error: inventoryError } = await supabase
+      // Check if inventory record already exists for this donation item
+      const { data: existingInventory } = await supabase
         .from("inventory")
-        .insert({
-          ngo_user_id: item.claimed_by,
-          food_title: item.food_name,
-          category: item.category || "Other",
-          quantity_received: item.quantity || "1",
-          quantity_remaining: item.quantity || "1",
-          expiry_date: item.expiry_date || null,
-          notes: sourceInfo,
-        });
+        .select("id")
+        .eq("ngo_user_id", item.claimed_by)
+        .like("notes", `%"donation_item_id":"${item.id}"%`)
+        .limit(1);
 
-      if (inventoryError) {
-        logger.vendor.error("Failed to add item to NGO inventory", inventoryError.message, { itemId: item.id }, user?.id);
-        // Don't throw - pickup is still confirmed, just log the inventory error
+      if (existingInventory && existingInventory.length > 0) {
+        logger.vendor.info("Inventory record already exists, skipping duplicate", { itemId: item.id }, user?.id);
       } else {
-        logger.vendor.info("Item added to NGO inventory", { itemId: item.id, ngoId: item.claimed_by }, user?.id);
+        const { error: inventoryError } = await supabase
+          .from("inventory")
+          .insert({
+            ngo_user_id: item.claimed_by,
+            food_title: item.food_name,
+            category: item.category || "Other",
+            quantity_received: item.quantity || "1",
+            quantity_remaining: item.quantity || "1",
+            expiry_date: item.expiry_date || null,
+            notes: sourceInfo,
+          });
+
+        if (inventoryError) {
+          logger.vendor.error("Failed to add item to NGO inventory", inventoryError.message, { itemId: item.id }, user?.id);
+          // Don't throw - pickup is still confirmed, just log the inventory error
+        } else {
+          logger.vendor.info("Item added to NGO inventory", { itemId: item.id, ngoId: item.claimed_by }, user?.id);
+        }
       }
 
       // 4. Notify NGO
@@ -402,10 +415,20 @@ const PickupManagement = () => {
                 <div className="flex justify-end">
                   <Button
                     size="sm"
-                    onClick={() => group.items.forEach((item: any) => confirmHandover.mutate({ item }))}
-                    disabled={confirmHandover.isPending}
+                    onClick={async () => {
+                      if (isConfirmingAll) return;
+                      setIsConfirmingAll(true);
+                      try {
+                        for (const item of group.items) {
+                          await confirmHandover.mutateAsync({ item });
+                        }
+                      } finally {
+                        setIsConfirmingAll(false);
+                      }
+                    }}
+                    disabled={confirmHandover.isPending || isConfirmingAll}
                   >
-                    <CheckCircle2 className="h-4 w-4 mr-1" /> Confirm All Pickups
+                    <CheckCircle2 className="h-4 w-4 mr-1" /> {isConfirmingAll ? "Confirming..." : "Confirm All Pickups"}
                   </Button>
                 </div>
               )}
