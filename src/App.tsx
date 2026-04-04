@@ -62,11 +62,14 @@ const App = () => (
         <AuthProvider>
           <Routes>
             {/* Auth (no sidebar) */}
+            <Route path="/" element={<Navigate to="/login/vendor" replace />} />
             <Route path="/login/vendor" element={<LoginVendor />} />
             <Route path="/login/ngo" element={<LoginNGO />} />
             <Route path="/login/admin" element={<LoginAdmin />} />
             <Route path="/signup/vendor" element={<SignupVendor />} />
             <Route path="/signup/ngo" element={<SignupNGO />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
 
             {/* All authenticated routes share AppLayout so sidebar never remounts */}
             <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
