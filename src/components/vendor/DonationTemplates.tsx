@@ -85,7 +85,7 @@ const DonationTemplates = ({
     queryKey: ["donation_templates", user?.id],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("donation_templates")
+        .from("donation_templates" as any)
         .select("*")
         .eq("vendor_id", user!.id)
         .order("created_at", { ascending: false });
@@ -105,7 +105,7 @@ const DonationTemplates = ({
       if (!name.trim()) throw new Error("Template name is required");
       if (currentItems.length === 0) throw new Error("Add at least one item to save as template");
 
-      const { error } = await supabase.from("donation_templates").insert({
+      const { error } = await supabase.from("donation_templates" as any).insert({
         vendor_id: user!.id,
         name: name.trim(),
         pickup_location: currentLocation?.address || null,
@@ -116,7 +116,7 @@ const DonationTemplates = ({
         contact_person: currentContactPerson || null,
         contact_phone: currentContactPhone || null,
         items: currentItems,
-      });
+      } as any);
 
       if (error) throw error;
     },
@@ -132,7 +132,7 @@ const DonationTemplates = ({
   // Delete template mutation
   const deleteTemplateMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("donation_templates").delete().eq("id", id);
+      const { error } = await supabase.from("donation_templates" as any).delete().eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {

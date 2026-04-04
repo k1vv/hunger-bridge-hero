@@ -50,7 +50,7 @@ const FeedbackForm = ({
       if (!user) throw new Error("You must be logged in to submit feedback");
       if (rating === 0) throw new Error("Please select a rating");
 
-      const { error } = await supabase.from("feedback").insert({
+      const { error } = await supabase.from("feedback" as any).insert({
         user_id: user.id,
         feedback_type: feedbackType,
         related_entity_type: relatedEntityType || null,

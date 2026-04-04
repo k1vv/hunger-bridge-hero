@@ -234,15 +234,12 @@ describe("Notifications", () => {
         "item-id-123"
       );
 
-      expect(mockInsert).toHaveBeenCalledWith(
-        expect.objectContaining({
-          type: "claim_cancelled",
-          title: "Claim Cancelled",
-          message: expect.stringContaining("Food Bank NGO has cancelled their claim"),
-          message: expect.stringContaining("Rice"),
-          message: expect.stringContaining("BATCH-001"),
-        })
-      );
+      const callArg = mockInsert.mock.calls[0][0];
+      expect(callArg.type).toBe("claim_cancelled");
+      expect(callArg.title).toBe("Claim Cancelled");
+      expect(callArg.message).toContain("Food Bank NGO has cancelled their claim");
+      expect(callArg.message).toContain("Rice");
+      expect(callArg.message).toContain("BATCH-001");
     });
   });
 
@@ -255,15 +252,12 @@ describe("Notifications", () => {
         "claim-id-123"
       );
 
-      expect(mockInsert).toHaveBeenCalledWith(
-        expect.objectContaining({
-          user_id: "ngo123",
-          type: "pickup_completed",
-          title: "Pickup Completed",
-          message: expect.stringContaining("Fresh Vegetables"),
-          message: expect.stringContaining("ABC Restaurant"),
-        })
-      );
+      const callArg = mockInsert.mock.calls[0][0];
+      expect(callArg.user_id).toBe("ngo123");
+      expect(callArg.type).toBe("pickup_completed");
+      expect(callArg.title).toBe("Pickup Completed");
+      expect(callArg.message).toContain("Fresh Vegetables");
+      expect(callArg.message).toContain("ABC Restaurant");
     });
   });
 
@@ -304,14 +298,11 @@ describe("Notifications", () => {
         "complaint-id-123"
       );
 
-      expect(mockInsert).toHaveBeenCalledWith(
-        expect.objectContaining({
-          type: "complaint_resolved",
-          title: "Complaint Resolved",
-          message: expect.stringContaining("quality complaint"),
-          message: expect.stringContaining(shortResolution),
-        })
-      );
+      const callArg = mockInsert.mock.calls[0][0];
+      expect(callArg.type).toBe("complaint_resolved");
+      expect(callArg.title).toBe("Complaint Resolved");
+      expect(callArg.message).toContain("quality complaint");
+      expect(callArg.message).toContain(shortResolution);
     });
 
     it("truncates long resolution text", async () => {
@@ -341,16 +332,13 @@ describe("Notifications", () => {
         "item-id-123"
       );
 
-      expect(mockInsert).toHaveBeenCalledWith(
-        expect.objectContaining({
-          user_id: "ngo123",
-          type: "claim_cancelled_by_vendor",
-          title: "Reservation Cancelled by Vendor",
-          message: expect.stringContaining("ABC Restaurant"),
-          message: expect.stringContaining("Fresh Bread"),
-          message: expect.stringContaining("not picked up"),
-        })
-      );
+      const callArg = mockInsert.mock.calls[0][0];
+      expect(callArg.user_id).toBe("ngo123");
+      expect(callArg.type).toBe("claim_cancelled_by_vendor");
+      expect(callArg.title).toBe("Reservation Cancelled by Vendor");
+      expect(callArg.message).toContain("ABC Restaurant");
+      expect(callArg.message).toContain("Fresh Bread");
+      expect(callArg.message).toContain("not picked up");
     });
   });
 

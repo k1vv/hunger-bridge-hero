@@ -338,6 +338,90 @@ export type Database = {
           },
         ]
       }
+      donation_templates: {
+        Row: {
+          contact_person: string | null
+          contact_phone: string | null
+          created_at: string
+          id: string
+          items: Json
+          name: string
+          pickup_lat: number | null
+          pickup_lng: number | null
+          pickup_location: string | null
+          pickup_time_end: string | null
+          pickup_time_start: string | null
+          updated_at: string
+          vendor_id: string
+        }
+        Insert: {
+          contact_person?: string | null
+          contact_phone?: string | null
+          created_at?: string
+          id?: string
+          items?: Json
+          name: string
+          pickup_lat?: number | null
+          pickup_lng?: number | null
+          pickup_location?: string | null
+          pickup_time_end?: string | null
+          pickup_time_start?: string | null
+          updated_at?: string
+          vendor_id: string
+        }
+        Update: {
+          contact_person?: string | null
+          contact_phone?: string | null
+          created_at?: string
+          id?: string
+          items?: Json
+          name?: string
+          pickup_lat?: number | null
+          pickup_lng?: number | null
+          pickup_location?: string | null
+          pickup_time_end?: string | null
+          pickup_time_start?: string | null
+          updated_at?: string
+          vendor_id?: string
+        }
+        Relationships: []
+      }
+      feedback: {
+        Row: {
+          comment: string | null
+          created_at: string
+          feedback_type: string
+          id: string
+          is_anonymous: boolean
+          rating: number
+          related_entity_id: string | null
+          related_entity_type: string | null
+          user_id: string
+        }
+        Insert: {
+          comment?: string | null
+          created_at?: string
+          feedback_type: string
+          id?: string
+          is_anonymous?: boolean
+          rating: number
+          related_entity_id?: string | null
+          related_entity_type?: string | null
+          user_id: string
+        }
+        Update: {
+          comment?: string | null
+          created_at?: string
+          feedback_type?: string
+          id?: string
+          is_anonymous?: boolean
+          rating?: number
+          related_entity_id?: string | null
+          related_entity_type?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       food_listings: {
         Row: {
           category: string
@@ -568,11 +652,15 @@ export type Database = {
           food_types: string[] | null
           has_multiple_outlets: boolean
           id: string
+          is_suspended: boolean
           name: string | null
           operation_hours: string | null
           phone: string | null
+          rejection_reason: string | null
           service_area: string | null
           storage_capacity: string | null
+          suspended_at: string | null
+          suspension_reason: string | null
           updated_at: string
           verification_status: string
         }
@@ -588,11 +676,15 @@ export type Database = {
           food_types?: string[] | null
           has_multiple_outlets?: boolean
           id: string
+          is_suspended?: boolean
           name?: string | null
           operation_hours?: string | null
           phone?: string | null
+          rejection_reason?: string | null
           service_area?: string | null
           storage_capacity?: string | null
+          suspended_at?: string | null
+          suspension_reason?: string | null
           updated_at?: string
           verification_status?: string
         }
@@ -608,11 +700,15 @@ export type Database = {
           food_types?: string[] | null
           has_multiple_outlets?: boolean
           id?: string
+          is_suspended?: boolean
           name?: string | null
           operation_hours?: string | null
           phone?: string | null
+          rejection_reason?: string | null
           service_area?: string | null
           storage_capacity?: string | null
+          suspended_at?: string | null
+          suspension_reason?: string | null
           updated_at?: string
           verification_status?: string
         }
