@@ -63,7 +63,7 @@ const LoginNGO = () => {
 
     setLoading(false);
     toast.success("NGO login successful!");
-    navigate("/");
+    navigate("/dashboard");
   };
 
   return (
@@ -96,6 +96,11 @@ const LoginNGO = () => {
               <Button type="submit" className="w-full bg-accent hover:bg-accent/90" disabled={loading}>
                 {loading ? "Signing in..." : "Sign In"}
               </Button>
+              <div className="text-right">
+                <Link to="/forgot-password?portal=ngo" className="text-sm text-primary hover:underline">
+                  Forgot password?
+                </Link>
+              </div>
             </form>
             <div className="mt-4 text-center text-sm text-muted-foreground">
               Don't have an account?{" "}

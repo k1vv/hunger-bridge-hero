@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -11,6 +11,8 @@ import AppLayout from "@/components/AppLayout";
 import NotFound from "./pages/shared/NotFound";
 import RoleDashboard from "./pages/shared/RoleDashboard";
 import FileComplaint from "./pages/shared/FileComplaint";
+import ForgotPassword from "./pages/shared/ForgotPassword";
+import ResetPassword from "./pages/shared/ResetPassword";
 
 // Vendor pages
 import LoginVendor from "./pages/vendor/LoginVendor";
@@ -60,15 +62,18 @@ const App = () => (
         <AuthProvider>
           <Routes>
             {/* Auth (no sidebar) */}
+            <Route path="/" element={<Navigate to="/login/vendor" replace />} />
             <Route path="/login/vendor" element={<LoginVendor />} />
             <Route path="/login/ngo" element={<LoginNGO />} />
             <Route path="/login/admin" element={<LoginAdmin />} />
             <Route path="/signup/vendor" element={<SignupVendor />} />
             <Route path="/signup/ngo" element={<SignupNGO />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
 
             {/* All authenticated routes share AppLayout so sidebar never remounts */}
             <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
-              <Route path="/" element={<RoleDashboard />} />
+              <Route path="/dashboard" element={<RoleDashboard />} />
 
               {/* Vendor routes */}
               <Route path="/vendor/dashboard" element={<ProtectedRoute allowedRoles={["vendor"]}><VendorDashboard /></ProtectedRoute>} />

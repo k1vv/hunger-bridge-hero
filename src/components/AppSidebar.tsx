@@ -27,7 +27,7 @@ import foodbridgeLogoVendor from "@/assets/foodbridge-logo.png";
 type NavItem = { label: string; icon: any; path: string };
 
 const vendorNav: NavItem[] = [
-  { label: "Dashboard", icon: LayoutDashboard, path: "/" },
+  { label: "Dashboard", icon: LayoutDashboard, path: "/dashboard" },
   { label: "Create Donation", icon: Plus, path: "/vendor/create" },
   { label: "My Donations", icon: ClipboardList, path: "/vendor/donations" },
   { label: "Pickups", icon: Truck, path: "/vendor/pickups" },
@@ -37,7 +37,7 @@ const vendorNav: NavItem[] = [
 ];
 
 const ngoNav: NavItem[] = [
-  { label: "Dashboard", icon: LayoutDashboard, path: "/" },
+  { label: "Dashboard", icon: LayoutDashboard, path: "/dashboard" },
   { label: "Available Donations", icon: Search, path: "/ngo/available" },
   { label: "My Claims", icon: ClipboardList, path: "/ngo/claims" },
   { label: "Inventory", icon: Package, path: "/ngo/inventory" },
@@ -48,7 +48,7 @@ const ngoNav: NavItem[] = [
 ];
 
 const adminNav: NavItem[] = [
-  { label: "Dashboard", icon: LayoutDashboard, path: "/" },
+  { label: "Dashboard", icon: LayoutDashboard, path: "/dashboard" },
   { label: "Users", icon: UsersIcon, path: "/admin/users" },
   { label: "Donations", icon: UtensilsCrossed, path: "/admin/donations" },
   { label: "Claims Monitoring", icon: Eye, path: "/admin/claims" },

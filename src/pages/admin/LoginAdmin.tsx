@@ -43,7 +43,7 @@ const LoginAdmin = () => {
 
     setLoading(false);
     toast.success("Admin login successful!");
-    navigate("/");
+    navigate("/dashboard");
   };
 
   return (

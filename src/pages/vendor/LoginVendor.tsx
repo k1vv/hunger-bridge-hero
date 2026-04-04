@@ -63,7 +63,7 @@ const LoginVendor = () => {
 
     setLoading(false);
     toast.success("Vendor login successful!");
-    navigate("/");
+    navigate("/dashboard");
   };
 
   return (
@@ -96,6 +96,11 @@ const LoginVendor = () => {
               <Button type="submit" className="w-full" disabled={loading}>
                 {loading ? "Signing in..." : "Sign In"}
               </Button>
+              <div className="text-right">
+                <Link to="/forgot-password?portal=vendor" className="text-sm text-primary hover:underline">
+                  Forgot password?
+                </Link>
+              </div>
             </form>
             <div className="mt-4 text-center text-sm text-muted-foreground">
               Don't have an account?{" "}
