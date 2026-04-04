@@ -317,7 +317,7 @@ const Distribution = () => {
         }
       }
 
-      // Build distribution data
+      // Build distribution data - include inventory_id for transaction logging
       const distributionData = {
         distribution_type: distributionType,
         title: title || `${DISTRIBUTION_TYPES.find(t => t.value === distributionType)?.label} Distribution`,
@@ -330,8 +330,10 @@ const Distribution = () => {
           food_title: s.item.food_title,
           quantity: s.quantity,
           category: s.item.category,
+          unit: "units",
         })),
         user_notes: notes,
+        selected_beneficiaries: selectedBeneficiaries,
       };
 
       // Create distribution record
@@ -390,6 +392,7 @@ const Distribution = () => {
       queryClient.invalidateQueries({ queryKey: ["distribution_records"] });
       queryClient.invalidateQueries({ queryKey: ["ngo_inventory"] });
       queryClient.invalidateQueries({ queryKey: ["ngo_inventory_for_distribution"] });
+      queryClient.invalidateQueries({ queryKey: ["ngo_inventory_transactions"] });
       resetForm();
       setShowNewDistribution(false);
     },
