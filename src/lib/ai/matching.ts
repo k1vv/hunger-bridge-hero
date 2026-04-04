@@ -26,7 +26,9 @@ import {
   type FoodCategory,
 } from "../constants";
 
-const OPENAI_API_KEY = import.meta.env.VITE_OPENAI_API_KEY;
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+const EDGE_FUNCTION_URL = `${SUPABASE_URL}/functions/v1/ai-embeddings`;
 
 // ============================================================================
 // TYPES
