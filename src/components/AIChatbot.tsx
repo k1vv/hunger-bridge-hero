@@ -29,6 +29,8 @@ export function AIChatbot() {
   const [isLoading, setIsLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const welcomeSentRef = useRef(false);
+  const pendingMessageRef = useRef<string | null>(null);
 
   const { role, user } = useAuth();
   const location = useLocation();
@@ -55,9 +57,10 @@ export function AIChatbot() {
     }
   }, [isOpen]);
 
-  // Add welcome message on first open
+  // Add welcome message on first open (with ref to prevent duplicates)
   useEffect(() => {
-    if (isOpen && messages.length === 0) {
+    if (isOpen && messages.length === 0 && !welcomeSentRef.current) {
+      welcomeSentRef.current = true;
       setMessages([
         {
           id: "welcome",
@@ -67,11 +70,15 @@ export function AIChatbot() {
         },
       ]);
     }
-  }, [isOpen]);
+  }, [isOpen, messages.length, context.userName]);
 
   const sendMessage = async (messageText?: string) => {
     const text = messageText || input.trim();
     if (!text || isLoading) return;
+
+    // Prevent duplicate sends of the same message
+    if (pendingMessageRef.current === text) return;
+    pendingMessageRef.current = text;
 
     const userMessage: Message = {
       id: `user-${Date.now()}`,
@@ -114,6 +121,7 @@ export function AIChatbot() {
       ]);
     } finally {
       setIsLoading(false);
+      pendingMessageRef.current = null;
     }
   };
 

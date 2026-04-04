@@ -143,7 +143,16 @@ function getFallbackResponse(message: string, context?: ChatContext): string {
   }
 
   // Navigation help
-  if (msgLower.includes("where") || msgLower.includes("find") || msgLower.includes("how to go")) {
+  if (msgLower.includes("navigat") || msgLower.includes("where") || msgLower.includes("find") || msgLower.includes("how to go")) {
+    // General navigation
+    if (msgLower.includes("navigat") && msgLower.includes("app")) {
+      if (context?.role === "vendor") {
+        return "Here's how to navigate as a vendor:\n\n• **Dashboard**: Overview of your donations\n• **Create Donation**: Post new food items\n• **My Donations**: View all your batches\n• **Pickups**: Manage pending collections\n• **Profile**: Update business info\n• **Reports**: See your impact stats";
+      } else if (context?.role === "ngo") {
+        return "Here's how to navigate as an NGO:\n\n• **Dashboard**: Overview of your activity\n• **Available Donations**: Find and claim food\n• **My Claims**: View claimed items\n• **Inventory**: Manage received food\n• **Distribution**: Record distributions\n• **Beneficiaries**: Manage recipients\n• **Profile**: Update organization info";
+      }
+      return "The sidebar contains all main navigation options. Click any menu item to go to that page. Use the Dashboard for an overview of your activity.";
+    }
     if (msgLower.includes("donation")) {
       return context?.role === "vendor"
         ? "To create a donation, click 'Create Donation' in the sidebar. To view your donations, go to 'My Donations'."
@@ -203,8 +212,7 @@ export function getQuickActions(context?: ChatContext): string[] {
     return [
       "How do I create a donation?",
       "Where can I see my pickups?",
-      "How do I confirm pickup?",
-      "What's my impact?",
+      "Navigating the app",
     ];
   }
 
@@ -212,15 +220,13 @@ export function getQuickActions(context?: ChatContext): string[] {
     return [
       "How do I claim food?",
       "Where's my inventory?",
-      "How to record distribution?",
-      "What are recommendations?",
+      "Navigating the app",
     ];
   }
 
   return [
     "How does FoodBridge work?",
     "How to get started?",
-    "What can I donate?",
-    "How to contact support?",
+    "Navigating the app",
   ];
 }
