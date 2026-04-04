@@ -252,15 +252,12 @@ describe("Notifications", () => {
         "claim-id-123"
       );
 
-      expect(mockInsert).toHaveBeenCalledWith(
-        expect.objectContaining({
-          user_id: "ngo123",
-          type: "pickup_completed",
-          title: "Pickup Completed",
-          message: expect.stringContaining("Fresh Vegetables"),
-          message: expect.stringContaining("ABC Restaurant"),
-        })
-      );
+      const callArg = mockInsert.mock.calls[0][0];
+      expect(callArg.user_id).toBe("ngo123");
+      expect(callArg.type).toBe("pickup_completed");
+      expect(callArg.title).toBe("Pickup Completed");
+      expect(callArg.message).toContain("Fresh Vegetables");
+      expect(callArg.message).toContain("ABC Restaurant");
     });
   });
 
