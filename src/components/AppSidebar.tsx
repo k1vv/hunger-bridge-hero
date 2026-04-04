@@ -16,11 +16,11 @@ import {
   BookOpen,
   FileText,
   Settings,
-  Leaf,
   LogOut,
   HandHeart,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import foodbridgeLogoNgo from "@/assets/foodbridge-logo-ngo.jpeg";
 
 type NavItem = { label: string; icon: any; path: string };
 
@@ -100,9 +100,7 @@ const AppSidebar = () => {
   return (
     <aside className="fixed left-0 top-0 z-40 flex h-screen w-64 flex-col border-r border-border bg-card">
       <div className="flex items-center gap-2.5 px-6 py-5 border-b border-border">
-        <div className={`flex h-9 w-9 items-center justify-center rounded-lg ${theme.logoBg}`}>
-          <Leaf className={`h-5 w-5 ${theme.logoText}`} />
-        </div>
+        <img src={foodbridgeLogoNgo} alt="FoodBridge" className="h-9 w-9 rounded-lg object-contain" />
         <div>
           <h1 className="text-base font-bold text-foreground tracking-tight">FoodBridge</h1>
           <p className="text-[11px] text-muted-foreground">Waste → Nourishment</p>

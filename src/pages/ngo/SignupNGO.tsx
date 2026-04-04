@@ -8,7 +8,7 @@ import { Building2 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import AddressPickerMap, { type StructuredAddress } from "@/components/AddressPickerMap";
-import foodbridgeLogo from "@/assets/foodbridge-logo.png";
+import foodbridgeLogo from "@/assets/foodbridge-logo-ngo.jpeg";
 
 const emptyAddress: StructuredAddress = {
   street1: "", street2: "", city: "", postcode: "", state: "",
