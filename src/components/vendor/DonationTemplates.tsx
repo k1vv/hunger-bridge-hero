@@ -85,7 +85,7 @@ const DonationTemplates = ({
     queryKey: ["donation_templates", user?.id],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("donation_templates")
+        .from("donation_templates" as any)
         .select("*")
         .eq("vendor_id", user!.id)
         .order("created_at", { ascending: false });
