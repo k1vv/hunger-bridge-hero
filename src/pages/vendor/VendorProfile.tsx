@@ -71,7 +71,7 @@ const VendorProfile = () => {
       const { data: items } = await supabase
         .from("donation_items")
         .select("id, status, quantity")
-        .eq("batch_id", batches?.map(b => b.id) || []);
+        .in("batch_id", batches?.map(b => b.id) || []);
 
       const totalBatches = batches?.length || 0;
       const completedBatches = batches?.filter(b => b.status === "completed").length || 0;
