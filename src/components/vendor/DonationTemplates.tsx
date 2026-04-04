@@ -132,7 +132,7 @@ const DonationTemplates = ({
   // Delete template mutation
   const deleteTemplateMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("donation_templates").delete().eq("id", id);
+      const { error } = await supabase.from("donation_templates" as any).delete().eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {
