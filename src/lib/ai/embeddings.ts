@@ -1,18 +1,20 @@
 /**
  * AI Embeddings Service for FoodBridge
  *
- * Uses OpenAI's text-embedding-3-small model for semantic matching
- * between donations and NGO preferences.
- *
- * SETUP: Uses same VITE_OPENAI_API_KEY as chatbot
+ * Calls the ai-embeddings edge function which proxies to OpenAI's
+ * text-embedding-3-small model for semantic matching.
  */
 
-const OPENAI_API_KEY = import.meta.env.VITE_OPENAI_API_KEY;
-const EMBEDDING_MODEL = "text-embedding-3-small";
-const EMBEDDING_DIMENSIONS = 1536;
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+const EDGE_FUNCTION_URL = `${SUPABASE_URL}/functions/v1/ai-embeddings`;
 
 // In-memory cache for embeddings (persists during session)
 const embeddingCache = new Map<string, number[]>();
+
+// Track availability after first call
+let _availabilityChecked = false;
+let _isAvailable = true;
 
 export interface EmbeddingResult {
   embedding: number[];
@@ -20,42 +22,42 @@ export interface EmbeddingResult {
 }
 
 /**
- * Generate embedding for a text string using OpenAI API
+ * Check if AI matching is available by verifying edge function connectivity
+ */
+export function isAIMatchingAvailable(): boolean {
+  // We assume available until proven otherwise
+  return _isAvailable && !!SUPABASE_URL && !!SUPABASE_ANON_KEY;
+}
+
+/**
+ * Generate embedding for a text string via edge function
  */
 export async function generateEmbedding(text: string): Promise<EmbeddingResult | null> {
-  if (!OPENAI_API_KEY) {
-    console.warn("OpenAI API key not configured - AI matching disabled");
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+    console.warn("Supabase not configured - AI matching disabled");
     return null;
   }
 
-  // Normalize and create cache key
   const normalizedText = text.trim().toLowerCase();
-  const cacheKey = normalizedText;
 
-  // Check cache first
-  if (embeddingCache.has(cacheKey)) {
-    return {
-      embedding: embeddingCache.get(cacheKey)!,
-      cached: true,
-    };
+  if (embeddingCache.has(normalizedText)) {
+    return { embedding: embeddingCache.get(normalizedText)!, cached: true };
   }
 
   try {
-    const response = await fetch("https://api.openai.com/v1/embeddings", {
+    const response = await fetch(EDGE_FUNCTION_URL, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${OPENAI_API_KEY}`,
+        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
       },
-      body: JSON.stringify({
-        model: EMBEDDING_MODEL,
-        input: normalizedText,
-      }),
+      body: JSON.stringify({ action: "embed", text: normalizedText }),
     });
 
     if (!response.ok) {
-      const error = await response.json();
-      console.error("OpenAI Embeddings API error:", error);
+      const err = await response.json().catch(() => ({}));
+      console.error("AI Embeddings edge function error:", response.status, err);
+      _isAvailable = false;
       return null;
     }
 
@@ -63,32 +65,28 @@ export async function generateEmbedding(text: string): Promise<EmbeddingResult |
     const embedding = data.data?.[0]?.embedding;
 
     if (!embedding) {
-      console.error("No embedding returned from API");
+      console.error("No embedding returned from edge function");
       return null;
     }
 
-    // Cache the result
-    embeddingCache.set(cacheKey, embedding);
-
-    return {
-      embedding,
-      cached: false,
-    };
+    _isAvailable = true;
+    embeddingCache.set(normalizedText, embedding);
+    return { embedding, cached: false };
   } catch (error) {
     console.error("Embedding generation error:", error);
+    _isAvailable = false;
     return null;
   }
 }
 
 /**
- * Generate embeddings for multiple texts in batch (more efficient)
+ * Generate embeddings for multiple texts in batch
  */
 export async function generateEmbeddingsBatch(texts: string[]): Promise<(number[] | null)[]> {
-  if (!OPENAI_API_KEY || texts.length === 0) {
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY || texts.length === 0) {
     return texts.map(() => null);
   }
 
-  // Check which texts need API calls
   const normalizedTexts = texts.map(t => t.trim().toLowerCase());
   const results: (number[] | null)[] = new Array(texts.length).fill(null);
   const textsToFetch: { index: number; text: string }[] = [];
@@ -101,44 +99,36 @@ export async function generateEmbeddingsBatch(texts: string[]): Promise<(number[
     }
   });
 
-  // If all cached, return early
-  if (textsToFetch.length === 0) {
-    return results;
-  }
+  if (textsToFetch.length === 0) return results;
 
   try {
-    const response = await fetch("https://api.openai.com/v1/embeddings", {
+    const response = await fetch(EDGE_FUNCTION_URL, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${OPENAI_API_KEY}`,
+        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
       },
-      body: JSON.stringify({
-        model: EMBEDDING_MODEL,
-        input: textsToFetch.map(t => t.text),
-      }),
+      body: JSON.stringify({ action: "embed", texts: textsToFetch.map(t => t.text) }),
     });
 
     if (!response.ok) {
-      console.error("OpenAI Embeddings batch API error");
+      console.error("AI Embeddings batch error:", response.status);
       return results;
     }
 
     const data = await response.json();
     const embeddings = data.data || [];
 
-    // Map results back and cache
     embeddings.forEach((item: { embedding: number[]; index: number }) => {
       const originalIndex = textsToFetch[item.index]?.index;
       const text = textsToFetch[item.index]?.text;
       if (originalIndex !== undefined && item.embedding) {
         results[originalIndex] = item.embedding;
-        if (text) {
-          embeddingCache.set(text, item.embedding);
-        }
+        if (text) embeddingCache.set(text, item.embedding);
       }
     });
 
+    _isAvailable = true;
     return results;
   } catch (error) {
     console.error("Batch embedding error:", error);
@@ -148,7 +138,6 @@ export async function generateEmbeddingsBatch(texts: string[]): Promise<(number[
 
 /**
  * Calculate cosine similarity between two embedding vectors
- * Returns value between -1 and 1 (1 = identical, 0 = orthogonal, -1 = opposite)
  */
 export function cosineSimilarity(a: number[], b: number[]): number {
   if (a.length !== b.length) {
@@ -176,15 +165,13 @@ export function cosineSimilarity(a: number[], b: number[]): number {
  * Convert cosine similarity (-1 to 1) to a 0-100 score
  */
 export function similarityToScore(similarity: number, maxPoints: number = 100): number {
-  // Cosine similarity for text is typically 0.3-0.9 range
-  // We normalize to 0-100 scale with some adjustment
-  const normalized = (similarity + 1) / 2; // Convert -1,1 to 0,1
-  const adjusted = Math.pow(normalized, 0.5); // Boost mid-range similarities
+  const normalized = (similarity + 1) / 2;
+  const adjusted = Math.pow(normalized, 0.5);
   return Math.round(adjusted * maxPoints);
 }
 
 /**
- * Clear the embedding cache (useful for testing or memory management)
+ * Clear the embedding cache
  */
 export function clearEmbeddingCache(): void {
   embeddingCache.clear();
@@ -196,13 +183,6 @@ export function clearEmbeddingCache(): void {
 export function getEmbeddingCacheStats(): { size: number; keys: string[] } {
   return {
     size: embeddingCache.size,
-    keys: Array.from(embeddingCache.keys()).slice(0, 10), // First 10 keys
+    keys: Array.from(embeddingCache.keys()).slice(0, 10),
   };
-}
-
-/**
- * Check if AI embeddings are available (API key configured)
- */
-export function isAIMatchingAvailable(): boolean {
-  return !!OPENAI_API_KEY;
 }
