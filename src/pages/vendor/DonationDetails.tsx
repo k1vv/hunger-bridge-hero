@@ -1,4 +1,4 @@
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, Link } from "react-router-dom";
 import PageLayout from "@/components/PageLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -6,8 +6,24 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { Trash2, MapPin, Clock, Package, Leaf, Thermometer, Phone, User, Calendar } from "lucide-react";
+import { Trash2, MapPin, Clock, Package, Leaf, Thermometer, Phone, User, Calendar, Edit, DollarSign, FileText } from "lucide-react";
 import { motion } from "framer-motion";
+
+/* Simple estimated value per item (RM) based on category */
+const estimateItemValue = (item: any): number => {
+  const baseRates: Record<string, number> = {
+    "Cooked Food": 5,
+    "Bakery": 3,
+    "Fruits": 4,
+    "Vegetables": 3,
+    "Beverages": 2.5,
+    "Rice": 4,
+    "Canned Food": 6,
+    "Dry Goods": 5,
+  };
+  const rate = baseRates[item.category] ?? 3;
+  return rate * (item.quantity || 1);
+};
 
 const DonationDetails = () => {
   const { id } = useParams();
@@ -45,8 +61,10 @@ const DonationDetails = () => {
   if (isLoading) return <PageLayout title="Loading..."><div className="flex justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div></PageLayout>;
   if (!batch) return <PageLayout title="Not Found"><p className="text-muted-foreground">Donation batch not found.</p></PageLayout>;
 
+  const canEdit = batch.status === "available" && batch.vendor_id === user?.id;
   const canDelete = batch.status === "available" && batch.vendor_id === user?.id;
   const items = (batch as any).donation_items || [];
+  const totalEstimatedValue = items.reduce((sum: number, item: any) => sum + estimateItemValue(item), 0);
 
   const spoilageColor = (risk: string) => {
     switch (risk) {
@@ -59,23 +77,92 @@ const DonationDetails = () => {
   return (
     <PageLayout title={`Batch ${batch.batch_number}`} subtitle="Donation batch details">
       <div className="max-w-3xl space-y-6">
-        <div className="flex items-center gap-3">
+        {/* Action bar */}
+        <div className="flex items-center gap-3 flex-wrap">
           <Badge variant="outline" className="text-sm capitalize">{batch.status}</Badge>
           <Badge variant="outline" className="text-sm capitalize">{batch.donation_type}</Badge>
-          {canDelete && <Button size="sm" variant="destructive" onClick={() => deleteMutation.mutate()}><Trash2 className="h-4 w-4 mr-1" /> Delete</Button>}
+          <div className="flex-1" />
+          {canEdit && (
+            <Link to={`/vendor/donations/${batch.id}/edit`}>
+              <Button size="sm" variant="outline"><Edit className="h-4 w-4 mr-1" /> Edit Batch</Button>
+            </Link>
+          )}
+          {canDelete && (
+            <Button size="sm" variant="destructive" onClick={() => deleteMutation.mutate()}>
+              <Trash2 className="h-4 w-4 mr-1" /> Delete
+            </Button>
+          )}
         </div>
 
-        {/* Batch Info */}
+        {/* Summary cards */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div className="rounded-xl border border-border bg-card p-4 text-center">
+            <Package className="h-5 w-5 mx-auto text-primary mb-1" />
+            <p className="text-lg font-bold text-foreground">{items.length}</p>
+            <p className="text-xs text-muted-foreground">Items</p>
+          </div>
+          <div className="rounded-xl border border-border bg-card p-4 text-center">
+            <DollarSign className="h-5 w-5 mx-auto text-success mb-1" />
+            <p className="text-lg font-bold text-foreground">RM {totalEstimatedValue.toFixed(2)}</p>
+            <p className="text-xs text-muted-foreground">Est. Value</p>
+          </div>
+          <div className="rounded-xl border border-border bg-card p-4 text-center">
+            <Calendar className="h-5 w-5 mx-auto text-info mb-1" />
+            <p className="text-lg font-bold text-foreground">{batch.pickup_date}</p>
+            <p className="text-xs text-muted-foreground">Pickup Date</p>
+          </div>
+          <div className="rounded-xl border border-border bg-card p-4 text-center">
+            <Clock className="h-5 w-5 mx-auto text-warning mb-1" />
+            <p className="text-lg font-bold text-foreground">
+              {batch.pickup_time_start && batch.pickup_time_end
+                ? `${batch.pickup_time_start.slice(0, 5)} - ${batch.pickup_time_end.slice(0, 5)}`
+                : "Flexible"}
+            </p>
+            <p className="text-xs text-muted-foreground">Pickup Time</p>
+          </div>
+        </div>
+
+        {/* Pickup Information */}
         <div className="rounded-xl border border-border bg-card p-5 space-y-3">
           <h3 className="text-sm font-semibold text-foreground">Pickup Information</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
-            <p className="flex items-center gap-2 text-muted-foreground"><MapPin className="h-4 w-4" /> {batch.pickup_location}</p>
+            <p className="flex items-center gap-2 text-muted-foreground"><MapPin className="h-4 w-4 flex-shrink-0" /> {batch.pickup_location}</p>
             <p className="flex items-center gap-2 text-muted-foreground"><Calendar className="h-4 w-4" /> {batch.pickup_date}</p>
-            {batch.pickup_time_start && <p className="flex items-center gap-2 text-muted-foreground"><Clock className="h-4 w-4" /> {batch.pickup_time_start} - {batch.pickup_time_end}</p>}
+            {batch.pickup_time_start && (
+              <p className="flex items-center gap-2 text-muted-foreground"><Clock className="h-4 w-4" /> {batch.pickup_time_start} - {batch.pickup_time_end}</p>
+            )}
             {batch.contact_person && <p className="flex items-center gap-2 text-muted-foreground"><User className="h-4 w-4" /> {batch.contact_person}</p>}
             {batch.contact_phone && <p className="flex items-center gap-2 text-muted-foreground"><Phone className="h-4 w-4" /> {batch.contact_phone}</p>}
           </div>
-          {batch.notes && <p className="text-sm text-muted-foreground mt-2 italic">"{batch.notes}"</p>}
+        </div>
+
+        {/* Notes */}
+        {batch.notes && (
+          <div className="rounded-xl border border-border bg-card p-5 space-y-2">
+            <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+              <FileText className="h-4 w-4" /> Notes
+            </h3>
+            <p className="text-sm text-muted-foreground">{batch.notes}</p>
+          </div>
+        )}
+
+        {/* Estimated Value Breakdown */}
+        <div className="rounded-xl border border-border bg-card p-5 space-y-3">
+          <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+            <DollarSign className="h-4 w-4" /> Estimated Value Breakdown
+          </h3>
+          <div className="space-y-2">
+            {items.map((item: any) => (
+              <div key={item.id} className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">{item.food_name} ({item.quantity} {item.unit})</span>
+                <span className="font-medium text-foreground">RM {estimateItemValue(item).toFixed(2)}</span>
+              </div>
+            ))}
+            <div className="border-t border-border pt-2 flex items-center justify-between text-sm font-semibold">
+              <span className="text-foreground">Total Estimated Value</span>
+              <span className="text-success">RM {totalEstimatedValue.toFixed(2)}</span>
+            </div>
+          </div>
         </div>
 
         {/* Items */}
