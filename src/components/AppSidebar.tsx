@@ -92,6 +92,7 @@ const AppSidebar = () => {
   const navItems = role === "admin" ? adminNav : role === "ngo" ? ngoNav : vendorNav;
   const roleLabel = role === "admin" ? "Admin Portal" : role === "ngo" ? "NGO Portal" : "Vendor Portal";
   const theme = themeClasses[role || "vendor"];
+  const logo = role === "admin" ? foodbridgeLogoAdmin : role === "ngo" ? foodbridgeLogoNgo : foodbridgeLogoVendor;
 
   const handleLogout = async () => {
     const loginPath = role === "admin" ? "/login/admin" : role === "ngo" ? "/login/ngo" : "/login/vendor";
