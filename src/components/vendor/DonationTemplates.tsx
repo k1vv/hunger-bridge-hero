@@ -105,7 +105,7 @@ const DonationTemplates = ({
       if (!name.trim()) throw new Error("Template name is required");
       if (currentItems.length === 0) throw new Error("Add at least one item to save as template");
 
-      const { error } = await supabase.from("donation_templates").insert({
+      const { error } = await supabase.from("donation_templates" as any).insert({
         vendor_id: user!.id,
         name: name.trim(),
         pickup_location: currentLocation?.address || null,
@@ -116,7 +116,7 @@ const DonationTemplates = ({
         contact_person: currentContactPerson || null,
         contact_phone: currentContactPhone || null,
         items: currentItems,
-      });
+      } as any);
 
       if (error) throw error;
     },
