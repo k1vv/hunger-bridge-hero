@@ -332,16 +332,13 @@ describe("Notifications", () => {
         "item-id-123"
       );
 
-      expect(mockInsert).toHaveBeenCalledWith(
-        expect.objectContaining({
-          user_id: "ngo123",
-          type: "claim_cancelled_by_vendor",
-          title: "Reservation Cancelled by Vendor",
-          message: expect.stringContaining("ABC Restaurant"),
-          message: expect.stringContaining("Fresh Bread"),
-          message: expect.stringContaining("not picked up"),
-        })
-      );
+      const callArg = mockInsert.mock.calls[0][0];
+      expect(callArg.user_id).toBe("ngo123");
+      expect(callArg.type).toBe("claim_cancelled_by_vendor");
+      expect(callArg.title).toBe("Reservation Cancelled by Vendor");
+      expect(callArg.message).toContain("ABC Restaurant");
+      expect(callArg.message).toContain("Fresh Bread");
+      expect(callArg.message).toContain("not picked up");
     });
   });
 
