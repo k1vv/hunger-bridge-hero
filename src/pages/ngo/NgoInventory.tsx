@@ -279,18 +279,18 @@ const NgoInventory = () => {
       if (error) throw error;
 
       // Log the waste in inventory_transactions
-      await supabase.from("inventory_transactions").insert({
+      await supabase.from("inventory_transactions").insert([{
         ngo_user_id: user!.id,
         inventory_id: id,
         transaction_type: "waste",
-        quantity: item?.quantity_remaining || 0,
+        quantity: Number(item?.quantity_remaining) || 0,
         unit: "units",
         food_name: item?.food_title || "Unknown",
         category: item?.category,
         destination_type: "waste",
         destination_name: reason,
         notes: `Item wasted - Reason: ${reason}`,
-      });
+      }]);
     },
     onSuccess: () => {
       toast.success("Item marked as wasted");
