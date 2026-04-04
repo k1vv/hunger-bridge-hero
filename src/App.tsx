@@ -73,7 +73,7 @@ const App = () => (
 
             {/* All authenticated routes share AppLayout so sidebar never remounts */}
             <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
-              <Route path="/" element={<RoleDashboard />} />
+              <Route path="/dashboard" element={<RoleDashboard />} />
 
               {/* Vendor routes */}
               <Route path="/vendor/dashboard" element={<ProtectedRoute allowedRoles={["vendor"]}><VendorDashboard /></ProtectedRoute>} />
