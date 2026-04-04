@@ -337,6 +337,7 @@ const Distribution = () => {
       // Create distribution record
       const { data: distributionRecord, error } = await supabase.from("distribution_records").insert({
         ngo_user_id: user!.id,
+        beneficiary_id: selectedBeneficiaries.length === 1 ? selectedBeneficiaries[0] : null,
         beneficiary_group: beneficiaryType || "General Distribution",
         quantity_distributed: selectedItems.reduce((sum, s) => sum + s.quantity, 0).toString(),
         distribution_date: distributionDate,

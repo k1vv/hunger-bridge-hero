@@ -71,6 +71,15 @@ const App = () => (
             <Route path="/signup/ngo" element={<SignupNGO />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/reset-password" element={<ResetPassword />} />
+            {/* Legacy route aliases */}
+            <Route path="/vendor/login" element={<Navigate to="/login/vendor" replace />} />
+            <Route path="/ngo/login" element={<Navigate to="/login/ngo" replace />} />
+            <Route path="/admin/login" element={<Navigate to="/login/admin" replace />} />
+            <Route path="/vendor/signup" element={<Navigate to="/signup/vendor" replace />} />
+            <Route path="/ngo/signup" element={<Navigate to="/signup/ngo" replace />} />
+            <Route path="/vendor" element={<Navigate to="/vendor/dashboard" replace />} />
+            <Route path="/ngo" element={<Navigate to="/ngo/dashboard" replace />} />
+            <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
 
             {/* All authenticated routes share AppLayout so sidebar never remounts */}
             <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>

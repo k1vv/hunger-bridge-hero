@@ -6,7 +6,9 @@
       "Bash(npm run build:*)",
       "Bash(npx supabase projects list)",
       "Bash(npm run test:*)",
-      "Bash(npx tsc:*)"
+      "Bash(npx tsc:*)",
+      "Bash(npx playwright install chromium)",
+      "Bash(npx playwright test:*)"
     ],
     "deny": [],
     "ask": []
