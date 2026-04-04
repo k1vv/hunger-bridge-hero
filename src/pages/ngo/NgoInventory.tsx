@@ -46,6 +46,10 @@ import {
   Gift,
   ShoppingCart,
   MapPin,
+  ArrowDownCircle,
+  ArrowUpCircle,
+  RefreshCw,
+  XCircle,
 } from "lucide-react";
 import { logger } from "@/lib/logger";
 import { FOOD_CATEGORIES, NGO_STORAGE_TYPES } from "@/lib/constants";
@@ -128,18 +132,37 @@ const NgoInventory = () => {
     enabled: !!user,
   });
 
-  // Fetch inventory history/logs
+  // Fetch inventory history/logs from transactions table
   const { data: inventoryLogs = [] } = useQuery({
-    queryKey: ["ngo_inventory_logs", user?.id],
+    queryKey: ["ngo_inventory_transactions", user?.id],
     queryFn: async () => {
-      // For now, we'll use distribution_records as logs
       const { data, error } = await supabase
-        .from("distribution_records")
+        .from("inventory_transactions")
         .select("*")
         .eq("ngo_user_id", user!.id)
         .order("created_at", { ascending: false })
-        .limit(50);
-      if (error) throw error;
+        .limit(100);
+      if (error) {
+        // Fallback to distribution_records if transactions table doesn't exist yet
+        console.warn("inventory_transactions not available, using distribution_records");
+        const { data: fallbackData, error: fallbackError } = await supabase
+          .from("distribution_records")
+          .select("*")
+          .eq("ngo_user_id", user!.id)
+          .order("created_at", { ascending: false })
+          .limit(50);
+        if (fallbackError) throw fallbackError;
+        // Map to transaction format
+        return (fallbackData || []).map((r: any) => ({
+          id: r.id,
+          transaction_type: "out",
+          quantity: r.quantity_distributed,
+          food_name: "Distribution",
+          destination_name: r.beneficiary_group,
+          notes: r.notes,
+          created_at: r.created_at,
+        }));
+      }
       return data;
     },
     enabled: !!user,
@@ -159,7 +182,7 @@ const NgoInventory = () => {
         user_notes: data.notes,
       });
 
-      const { error } = await supabase.from("inventory").insert({
+      const { data: insertedItem, error } = await supabase.from("inventory").insert({
         ngo_user_id: user!.id,
         food_title: data.food_title,
         category: data.category,
@@ -168,12 +191,27 @@ const NgoInventory = () => {
         expiry_date: data.expiry_date || null,
         storage_location: data.storage_location || null,
         notes: notesData,
-      });
+      }).select("id").single();
       if (error) throw error;
+
+      // Log IN transaction for manual entry
+      await supabase.from("inventory_transactions").insert({
+        ngo_user_id: user!.id,
+        inventory_id: insertedItem.id,
+        transaction_type: "in",
+        quantity: parseFloat(data.quantity_received) || 0,
+        unit: "units",
+        food_name: data.food_title,
+        category: data.category,
+        source_type: data.source_type,
+        source_name: data.source_name || "Manual Entry",
+        notes: data.source_type === "manual" ? "Manually added to inventory" : `${data.source_type}: ${data.source_name}`,
+      });
     },
     onSuccess: () => {
       toast.success("Item added to inventory!");
       queryClient.invalidateQueries({ queryKey: ["ngo_inventory"] });
+      queryClient.invalidateQueries({ queryKey: ["ngo_inventory_transactions"] });
       setShowAddDialog(false);
       resetForm();
     },
@@ -230,24 +268,34 @@ const NgoInventory = () => {
   const markAsWastedMutation = useMutation({
     mutationFn: async ({ id, reason }: { id: string; reason: string }) => {
       logger.ngo.info("Marking item as wasted", { itemId: id, reason }, user?.id);
-      // Update quantity_remaining to 0 and log the waste
+
+      // Get item details first
+      const { data: item } = await supabase.from("inventory").select("*").eq("id", id).single();
+
+      // Update quantity_remaining to 0
       const { error } = await supabase.from("inventory").update({
         quantity_remaining: "0",
       }).eq("id", id);
       if (error) throw error;
 
-      // Log the waste in distribution_records
-      await supabase.from("distribution_records").insert({
+      // Log the waste in inventory_transactions
+      await supabase.from("inventory_transactions").insert({
         ngo_user_id: user!.id,
-        beneficiary_group: `WASTE: ${reason}`,
-        quantity_distributed: "0",
+        inventory_id: id,
+        transaction_type: "waste",
+        quantity: item?.quantity_remaining || 0,
+        unit: "units",
+        food_name: item?.food_title || "Unknown",
+        category: item?.category,
+        destination_type: "waste",
+        destination_name: reason,
         notes: `Item wasted - Reason: ${reason}`,
       });
     },
     onSuccess: () => {
       toast.success("Item marked as wasted");
       queryClient.invalidateQueries({ queryKey: ["ngo_inventory"] });
-      queryClient.invalidateQueries({ queryKey: ["ngo_inventory_logs"] });
+      queryClient.invalidateQueries({ queryKey: ["ngo_inventory_transactions"] });
     },
     onError: (err: any) => toast.error(err.message),
   });
@@ -517,26 +565,119 @@ const NgoInventory = () => {
             </DialogTrigger>
             <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
               <DialogHeader>
-                <DialogTitle>Inventory History</DialogTitle>
+                <DialogTitle>Inventory Transactions</DialogTitle>
               </DialogHeader>
+
+              {/* Summary stats */}
+              <div className="grid grid-cols-2 gap-3 mt-4">
+                <div className="rounded-lg border border-green-200 bg-green-50 p-3">
+                  <div className="flex items-center gap-2 text-green-700">
+                    <ArrowDownCircle className="h-4 w-4" />
+                    <span className="text-xs font-medium">Total IN</span>
+                  </div>
+                  <p className="text-lg font-bold text-green-700">
+                    {inventoryLogs.filter((l: any) => l.transaction_type === "in").reduce((sum: number, l: any) => sum + (parseFloat(l.quantity) || 0), 0).toFixed(0)} units
+                  </p>
+                </div>
+                <div className="rounded-lg border border-red-200 bg-red-50 p-3">
+                  <div className="flex items-center gap-2 text-red-700">
+                    <ArrowUpCircle className="h-4 w-4" />
+                    <span className="text-xs font-medium">Total OUT</span>
+                  </div>
+                  <p className="text-lg font-bold text-red-700">
+                    {inventoryLogs.filter((l: any) => l.transaction_type === "out").reduce((sum: number, l: any) => sum + (parseFloat(l.quantity) || 0), 0).toFixed(0)} units
+                  </p>
+                </div>
+              </div>
+
               <div className="space-y-3 mt-4">
                 {inventoryLogs.length === 0 ? (
-                  <p className="text-sm text-muted-foreground text-center py-8">No history records</p>
+                  <p className="text-sm text-muted-foreground text-center py-8">No transaction history yet</p>
                 ) : (
-                  inventoryLogs.map((log: any) => (
-                    <div key={log.id} className="flex items-start gap-3 p-3 rounded-lg border border-border">
-                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted">
-                        <History className="h-4 w-4 text-muted-foreground" />
+                  inventoryLogs.map((log: any) => {
+                    const isIn = log.transaction_type === "in";
+                    const isOut = log.transaction_type === "out";
+                    const isWaste = log.transaction_type === "waste";
+                    const isAdjustment = log.transaction_type === "adjustment";
+
+                    return (
+                      <div
+                        key={log.id}
+                        className={`flex items-start gap-3 p-3 rounded-lg border ${
+                          isIn ? "border-green-200 bg-green-50/50" :
+                          isOut ? "border-red-200 bg-red-50/50" :
+                          isWaste ? "border-amber-200 bg-amber-50/50" :
+                          "border-border"
+                        }`}
+                      >
+                        <div className={`flex h-9 w-9 items-center justify-center rounded-full ${
+                          isIn ? "bg-green-100" :
+                          isOut ? "bg-red-100" :
+                          isWaste ? "bg-amber-100" :
+                          "bg-muted"
+                        }`}>
+                          {isIn && <ArrowDownCircle className="h-4 w-4 text-green-600" />}
+                          {isOut && <ArrowUpCircle className="h-4 w-4 text-red-600" />}
+                          {isWaste && <XCircle className="h-4 w-4 text-amber-600" />}
+                          {isAdjustment && <RefreshCw className="h-4 w-4 text-muted-foreground" />}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between gap-2">
+                            <p className="text-sm font-medium text-foreground truncate">
+                              {log.food_name || "Unknown Item"}
+                            </p>
+                            <span className={`text-sm font-bold ${
+                              isIn ? "text-green-600" : isOut ? "text-red-600" : "text-amber-600"
+                            }`}>
+                              {isIn ? "+" : "-"}{parseFloat(log.quantity || 0).toFixed(0)} {log.unit || "units"}
+                            </span>
+                          </div>
+
+                          <div className="flex flex-wrap gap-x-3 gap-y-1 mt-1 text-xs text-muted-foreground">
+                            {log.category && (
+                              <span className="flex items-center gap-1">
+                                <Archive className="h-3 w-3" /> {log.category}
+                              </span>
+                            )}
+
+                            {/* Source (for IN transactions) */}
+                            {isIn && log.source_name && (
+                              <span className="flex items-center gap-1">
+                                <Gift className="h-3 w-3 text-green-600" />
+                                <span className="text-green-700">From: <strong>{log.source_name}</strong></span>
+                              </span>
+                            )}
+
+                            {/* Destination (for OUT transactions) */}
+                            {isOut && log.destination_name && (
+                              <span className="flex items-center gap-1">
+                                <User className="h-3 w-3 text-red-600" />
+                                <span className="text-red-700">To: <strong>{log.destination_name}</strong></span>
+                              </span>
+                            )}
+
+                            {/* Waste reason */}
+                            {isWaste && log.destination_name && (
+                              <span className="flex items-center gap-1">
+                                <AlertTriangle className="h-3 w-3 text-amber-600" />
+                                <span className="text-amber-700">Reason: {log.destination_name}</span>
+                              </span>
+                            )}
+                          </div>
+
+                          {log.notes && (
+                            <p className="text-xs text-muted-foreground/70 mt-1 italic">
+                              {log.notes}
+                            </p>
+                          )}
+
+                          <p className="text-xs text-muted-foreground/50 mt-1">
+                            {new Date(log.created_at).toLocaleString()}
+                          </p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="text-sm font-medium">{log.beneficiary_group || "Distribution"}</p>
-                        <p className="text-xs text-muted-foreground">{log.notes || `Qty: ${log.quantity_distributed}`}</p>
-                        <p className="text-xs text-muted-foreground/70 mt-1">
-                          {new Date(log.created_at).toLocaleString()}
-                        </p>
-                      </div>
-                    </div>
-                  ))
+                    );
+                  })
                 )}
               </div>
             </DialogContent>

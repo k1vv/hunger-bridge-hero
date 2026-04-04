@@ -10,6 +10,7 @@ import { motion } from "framer-motion";
 import { notifyNgoOfPickupComplete, notifyNgoOfClaimCancelledByVendor } from "@/lib/notifications";
 import { logger } from "@/lib/logger";
 import { useState, useRef } from "react";
+import { useRealtimePickups } from "@/hooks/useRealtimeSubscription";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -55,6 +56,9 @@ const getTimeRemaining = (claimedAt: string | null): string | null => {
 const PickupManagement = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+
+  // Subscribe to real-time pickup updates
+  useRealtimePickups(user?.id);
 
   // State for pickup confirmation dialog
   const [confirmingItem, setConfirmingItem] = useState<any>(null);

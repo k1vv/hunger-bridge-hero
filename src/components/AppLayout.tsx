@@ -1,6 +1,7 @@
 import { Outlet } from "react-router-dom";
 import AppSidebar from "./AppSidebar";
 import NotificationBell from "./NotificationBell";
+import { AIChatbot } from "./AIChatbot";
 
 const AppLayout = () => {
   return (
@@ -9,6 +10,8 @@ const AppLayout = () => {
       <main className="ml-64">
         <Outlet />
       </main>
+      {/* AI Chatbot - floating assistant */}
+      <AIChatbot />
     </div>
   );
 };

@@ -17,6 +17,7 @@ import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { notifyVendorOfClaim } from "@/lib/notifications";
 import PickupLocationMap from "@/components/PickupLocationMap";
 import { FOOD_CATEGORIES, CATEGORY_TO_FOOD_TYPE_MAPPING, STORAGE_COMPATIBILITY } from "@/lib/constants";
+import { useRealtimeDonations } from "@/hooks/useRealtimeSubscription";
 
 // ============================================================================
 // SMART RECOMMENDATION ALGORITHM
@@ -324,6 +325,9 @@ const AvailableDonations = () => {
   const [halalFilter, setHalalFilter] = useState("all");
   const [selectedItems, setSelectedItems] = useState<Record<string, Set<string>>>({});
   const [expandedBatch, setExpandedBatch] = useState<string | null>(null);
+
+  // Subscribe to real-time donation updates
+  useRealtimeDonations();
 
   // Fetch NGO profile for notifications AND recommendations (MUST be before useMemo that uses it)
   const { data: ngoProfile } = useQuery({

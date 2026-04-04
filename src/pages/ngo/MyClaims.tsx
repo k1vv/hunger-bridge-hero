@@ -11,6 +11,7 @@ import { Package, MapPin, Clock, Truck, CheckCircle, ChevronDown, ChevronUp, Use
 import { logger } from "@/lib/logger";
 import { notifyVendorOfClaimCancellation } from "@/lib/notifications";
 import PickupLocationMap from "@/components/PickupLocationMap";
+import { useRealtimeClaims } from "@/hooks/useRealtimeSubscription";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -52,6 +53,9 @@ const MyClaims = () => {
   const [filter, setFilter] = useState("all");
   const [expandedBatch, setExpandedBatch] = useState<string | null>(null);
   const queryClient = useQueryClient();
+
+  // Subscribe to real-time claim updates
+  useRealtimeClaims(user?.id);
 
   const { data: claimedItems = [] } = useQuery({
     queryKey: ["ngo_claimed_items", user?.id],

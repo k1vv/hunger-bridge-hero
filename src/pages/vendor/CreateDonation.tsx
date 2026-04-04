@@ -12,12 +12,14 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import LocationPickerMap, { type PickedLocation } from "@/components/LocationPickerMap";
-import { ImagePlus, X, Plus, Trash2, Package, ChevronRight } from "lucide-react";
+import { ImagePlus, X, Plus, Trash2, Package, ChevronRight, Sparkles, Loader2, CheckCircle2, XCircle, AlertTriangle, ShieldCheck } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { logger } from "@/lib/logger";
 import { notifyNgosOfNewDonation } from "@/lib/notifications";
 import RecommendedNGOs from "@/components/vendor/RecommendedNGOs";
 import DonationTemplates, { type DonationTemplate, type TemplateItem } from "@/components/vendor/DonationTemplates";
+import { analyzeFoodImage, fileToBase64 } from "@/lib/ai/foodRecognition";
+import { verifyFoodBatch, type VerificationResult } from "@/lib/ai/foodVerification";
 import {
   FOOD_CATEGORIES,
   FOOD_UNITS,
@@ -89,25 +91,72 @@ const CreateDonation = () => {
   // Section B: Food items
   const [items, setItems] = useState<FoodItem[]>([emptyItem()]);
   const [creating, setCreating] = useState(false);
+  const [analyzingItems, setAnalyzingItems] = useState<Record<string, boolean>>({});
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
-  const addItem = () => setItems([...items, emptyItem()]);
+  // Verification state
+  const [verifying, setVerifying] = useState(false);
+  const [verificationResults, setVerificationResults] = useState<VerificationResult[] | null>(null);
+  const [verificationPassed, setVerificationPassed] = useState<boolean | null>(null);
+
+  const addItem = () => {
+    setItems([...items, emptyItem()]);
+    resetVerification();
+  };
 
   const removeItem = (id: string) => {
     if (items.length <= 1) { toast.error("At least one food item is required"); return; }
     setItems(items.filter(i => i.id !== id));
+    resetVerification();
   };
 
   const updateItem = (id: string, field: keyof FoodItem, value: any) => {
-    setItems(items.map(i => i.id === id ? { ...i, [field]: value } : i));
+    setItems(prevItems => prevItems.map(i => i.id === id ? { ...i, [field]: value } : i));
+    resetVerification(); // Reset verification when any item changes
   };
 
-  const handleImageSelect = (itemId: string, e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageSelect = async (itemId: string, e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     if (file.size > 5 * 1024 * 1024) { toast.error("Image must be less than 5MB"); return; }
+
+    // Set image preview immediately
     updateItem(itemId, "imageFile", file);
     updateItem(itemId, "imagePreview", URL.createObjectURL(file));
+
+    // Analyze with AI if API key is available
+    const apiKey = import.meta.env.VITE_GOOGLE_VISION_API_KEY;
+    if (!apiKey) return;
+
+    setAnalyzingItems(prev => ({ ...prev, [itemId]: true }));
+    try {
+      const base64 = await fileToBase64(file);
+      const analysis = await analyzeFoodImage(base64);
+
+      // Auto-fill fields if confident enough
+      if (analysis.confidence > 0.5) {
+        updateItem(itemId, "foodName", analysis.suggestedName);
+        updateItem(itemId, "category", analysis.category);
+        updateItem(itemId, "storageCondition", analysis.storageRecommendation);
+        if (analysis.isHalal !== null) {
+          updateItem(itemId, "halalStatus", analysis.isHalal ? "halal" : "non_halal");
+        }
+
+        toast.success(`AI detected: ${analysis.suggestedName}`, {
+          description: `Category: ${analysis.category} (${Math.round(analysis.confidence * 100)}% confident)`,
+        });
+      } else if (analysis.suggestedName) {
+        // Lower confidence - just notify, don't auto-fill
+        toast.info(`AI suggestion: ${analysis.suggestedName}`, {
+          description: "Low confidence - please verify and fill manually",
+        });
+      }
+    } catch (error) {
+      console.error("Food analysis failed:", error);
+      // Silent fail - user can still fill form manually
+    } finally {
+      setAnalyzingItems(prev => ({ ...prev, [itemId]: false }));
+    }
   };
 
   const removeImage = (itemId: string) => {
@@ -126,8 +175,57 @@ const CreateDonation = () => {
       if (!item.quantity || parseFloat(item.quantity) <= 0) { toast.error(`Item ${i + 1}: Quantity must be > 0`); return false; }
       if (!item.expiryDate) { toast.error(`Item ${i + 1}: Expiry date is required`); return false; }
       if (!item.estimatedValue || parseFloat(item.estimatedValue) <= 0) { toast.error(`Item ${i + 1}: Estimated value is required`); return false; }
+      if (!item.imageFile) { toast.error(`Item ${i + 1}: Photo is required for AI verification`); return false; }
     }
     return true;
+  };
+
+  // AI Verification step
+  const handleVerify = async () => {
+    if (!validate()) return;
+
+    setVerifying(true);
+    setVerificationResults(null);
+    setVerificationPassed(null);
+
+    try {
+      // Convert items to verification format
+      const itemsToVerify = await Promise.all(items.map(async (item) => {
+        const base64 = item.imageFile ? await fileToBase64(item.imageFile) : "";
+        return {
+          foodName: item.foodName,
+          category: item.category,
+          quantity: parseFloat(item.quantity),
+          unit: item.unit,
+          expiryDate: item.expiryDate,
+          storageCondition: item.storageCondition,
+          halalStatus: item.halalStatus,
+          imageBase64: base64,
+        };
+      }));
+
+      const result = await verifyFoodBatch(itemsToVerify);
+      setVerificationResults(result.results);
+      setVerificationPassed(result.passed);
+
+      if (result.passed) {
+        toast.success("Verification passed!", { description: result.summary });
+      } else {
+        toast.error("Verification failed", { description: result.summary });
+      }
+    } catch (error) {
+      console.error("Verification error:", error);
+      toast.error("Verification failed", { description: "An error occurred during verification" });
+      setVerificationPassed(false);
+    } finally {
+      setVerifying(false);
+    }
+  };
+
+  // Reset verification when items change
+  const resetVerification = () => {
+    setVerificationResults(null);
+    setVerificationPassed(null);
   };
 
   const handleSelectTemplate = (template: DonationTemplate) => {
@@ -178,6 +276,11 @@ const CreateDonation = () => {
     }
     if (!validate()) {
       logger.vendor.warn("Create donation validation failed", { itemCount: items.length }, user.id);
+      return;
+    }
+    // Check if verification passed
+    if (!verificationPassed) {
+      toast.error("Please verify your donation first", { description: "Click 'Verify with AI' to check your food items" });
       return;
     }
     setCreating(true);
@@ -499,10 +602,23 @@ const CreateDonation = () => {
 
                   {/* Image */}
                   <div className="space-y-1.5">
-                    <Label className="text-xs">Photo</Label>
+                    <Label className="text-xs flex items-center gap-1.5">
+                      Photo *
+                      <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-primary/10 text-primary text-[10px] font-medium">
+                        <Sparkles className="h-2.5 w-2.5" /> AI Verified
+                      </span>
+                    </Label>
                     {item.imagePreview ? (
                       <div className="relative rounded-lg overflow-hidden border border-border h-24 w-32">
                         <img src={item.imagePreview} alt="" className="w-full h-full object-cover" />
+                        {analyzingItems[item.id] && (
+                          <div className="absolute inset-0 bg-background/80 flex items-center justify-center">
+                            <div className="flex flex-col items-center gap-1">
+                              <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                              <span className="text-[10px] text-primary font-medium">Analyzing...</span>
+                            </div>
+                          </div>
+                        )}
                         <button type="button" onClick={() => removeImage(item.id)} className="absolute top-1 right-1 rounded-full bg-background/80 p-0.5">
                           <X className="h-3 w-3" />
                         </button>
@@ -537,14 +653,127 @@ const CreateDonation = () => {
             vendorLng={pickupLocation.lng ?? undefined}
           />
 
+          {/* AI Verification Section */}
+          <div className="rounded-xl border border-border bg-card p-6 shadow-card space-y-4">
+            <div className="flex items-center gap-2 mb-1">
+              <div className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/10">
+                <ShieldCheck className="h-4 w-4 text-primary" />
+              </div>
+              <h3 className="text-sm font-semibold text-foreground">AI Verification</h3>
+              {verificationPassed === true && (
+                <span className="ml-auto inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-green-100 text-green-700 text-xs font-medium">
+                  <CheckCircle2 className="h-3 w-3" /> Passed
+                </span>
+              )}
+              {verificationPassed === false && (
+                <span className="ml-auto inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-100 text-red-700 text-xs font-medium">
+                  <XCircle className="h-3 w-3" /> Failed
+                </span>
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Our AI will verify that your food items are valid, fresh, and properly documented before listing them for NGOs.
+            </p>
+
+            {/* Verification Results */}
+            {verificationResults && (
+              <div className="space-y-3">
+                {verificationResults.map((result, index) => (
+                  <div
+                    key={items[index]?.id || index}
+                    className={`rounded-lg border p-3 ${
+                      result.passed
+                        ? "border-green-200 bg-green-50"
+                        : "border-red-200 bg-red-50"
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 mb-2">
+                      {result.passed ? (
+                        <CheckCircle2 className="h-4 w-4 text-green-600" />
+                      ) : (
+                        <XCircle className="h-4 w-4 text-red-600" />
+                      )}
+                      <span className="text-sm font-medium">
+                        Item {index + 1}: {items[index]?.foodName || "Unknown"}
+                      </span>
+                      <span className="ml-auto text-xs text-muted-foreground">
+                        Score: {result.score}/100
+                      </span>
+                    </div>
+
+                    {result.detectedFood && (
+                      <p className="text-xs text-muted-foreground mb-2">
+                        AI detected: {result.detectedFood}
+                      </p>
+                    )}
+
+                    {result.issues.length > 0 && (
+                      <div className="space-y-1">
+                        {result.issues.map((issue, i) => (
+                          <div
+                            key={i}
+                            className={`flex items-start gap-2 text-xs ${
+                              issue.severity === "error" ? "text-red-700" : "text-amber-700"
+                            }`}
+                          >
+                            {issue.severity === "error" ? (
+                              <XCircle className="h-3 w-3 mt-0.5 flex-shrink-0" />
+                            ) : (
+                              <AlertTriangle className="h-3 w-3 mt-0.5 flex-shrink-0" />
+                            )}
+                            <span>{issue.message}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Verify Button */}
+            <Button
+              type="button"
+              variant={verificationPassed ? "outline" : "default"}
+              onClick={handleVerify}
+              disabled={verifying}
+              className="w-full"
+            >
+              {verifying ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Verifying with AI...
+                </>
+              ) : verificationPassed ? (
+                <>
+                  <CheckCircle2 className="h-4 w-4 mr-2" />
+                  Re-verify Items
+                </>
+              ) : (
+                <>
+                  <Sparkles className="h-4 w-4 mr-2" />
+                  Verify with AI
+                </>
+              )}
+            </Button>
+          </div>
+
           {/* Summary & Submit */}
-          <div className="rounded-xl border border-primary/20 bg-primary/5 p-4">
+          <div className={`rounded-xl border p-4 ${
+            verificationPassed
+              ? "border-green-200 bg-green-50"
+              : "border-primary/20 bg-primary/5"
+          }`}>
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-semibold text-foreground">Ready to submit</p>
-                <p className="text-xs text-muted-foreground">{items.length} food item(s) · {donationType} pickup · {pickupLocation.address || "No location set"}</p>
+                <p className="text-sm font-semibold text-foreground">
+                  {verificationPassed ? "Ready to submit" : "Verification required"}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {items.length} food item(s) · {donationType} pickup · {pickupLocation.address || "No location set"}
+                </p>
               </div>
-              <Button type="submit" disabled={creating}>
+              <Button type="submit" disabled={creating || !verificationPassed}>
                 {creating ? "Creating..." : "Submit Donation"} <ChevronRight className="h-4 w-4 ml-1" />
               </Button>
             </div>
