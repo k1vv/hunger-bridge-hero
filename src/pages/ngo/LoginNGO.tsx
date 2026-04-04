@@ -70,7 +70,7 @@ const LoginNGO = () => {
     <div className="min-h-screen flex items-center justify-center bg-background px-4">
       <div className="w-full max-w-md space-y-6">
         <div className="flex flex-col items-center gap-2">
-          <img src={foodbridgeLogoNgo} alt="FoodBridge" className="h-12 w-12 rounded-xl object-contain" />
+          <img src={foodbridgeLogoNgo} alt="FoodBridge" className="h-20 w-20 rounded-xl object-contain" />
           <h1 className="text-2xl font-bold text-foreground">FoodBridge</h1>
           <div className="flex items-center gap-2 rounded-full bg-accent/10 px-3 py-1">
             <Building2 className="h-4 w-4 text-accent" />
